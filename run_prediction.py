@@ -38,9 +38,9 @@ config = dict()
 
 # General Parameters
 
-config["data_file"] = "CT_190PTS.h5"
-config["model_images"] = "Unet2DBN_muscle.h5"
-config['prediction_folder'] = '2DUnetBN_prediction'
+config["data_file"] = "j.h5"
+config["model_images"] = "Unet2DBN_muscle_wdscloss.h5"
+config['prediction_folder'] = 'j'
 config["testing_split"] = 'validation_0.2' +'.pkl'
 
 
@@ -63,8 +63,8 @@ config["test_model"] = config["model_images"]
 
 config["batch_size"] = 5
 config["validation_batch_size"] = config['batch_size']
-config["GPU"] = 2
-config["CPU"] = 12
+config["GPU"] = 0
+config["CPU"] = 4
 config['patch_shape'] = None
 config['skip_blank'] = False
 

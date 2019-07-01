@@ -11,10 +11,10 @@ import matplotlib.pyplot as plt
 
 
 config = dict()
-config['input_dir'] = 'predictions/2DUnetBN_prediction'
+config['input_dir'] = 'predictions/j'
 config['truth_img'] = 'truth'
 config['prediction_img'] = 'prediction'
-config['output_file'] = 'DSC.csv'
+config['output_file'] = 'CT_2_DSC.csv'
 
 
 

@@ -14,17 +14,17 @@ config = dict()
 ##
 config["input_type"] = "Image"
 config["input_shape"] = (256,256)
-config["input_images"] = "ImageData_membrane"
+config["input_images"] = "ImageData_CT"
 config["image_format"] = "TIF" # or "NIFTI"
 config["slice_number"] = 0 # Use this if you have a stacked TIF and want only one slice for 2D problems.
                            # slice number goes from 0 to length of Stack
 
-config["output_file"] = "Membrane_data.h5"
+config["output_file"] = "j.h5"
 
 config["overwrite"] = 1
 config["problem_type"] = "Segmentation"
-config["image_modalities"] = ["Input"]
-config["image_masks"] = ["Mask" ] #["Label"]   # For Image Masks, will serve as label for segmentation problems
+config["image_modalities"] = ["CT"]
+config["image_masks"] = ["Muscle"] #["Label"]   # For Image Masks, will serve as label for segmentation problems
 #config["n_channels"] = 1            # All image channels that will be used as input, image_mask can be input for classification problems and output for segmentation problems.
 
 config["clinical_truthname"] =  None # For CSV File
