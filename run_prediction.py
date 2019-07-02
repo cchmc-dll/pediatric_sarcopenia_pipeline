@@ -34,14 +34,18 @@ from unet3d.prediction2D import run_validation_case
 from unet3d.metrics import (dice_coefficient, dice_coefficient_loss, dice_coef, dice_coef_loss,dice_coefficient_monitor,
                             weighted_dice_coefficient_loss_2D, weighted_dice_coefficient_2D)
 
+import tensorflow as tf
+sess = tf.Session()
+
+
 config = dict()
 
 # General Parameters
 
-config["data_file"] = "j.h5"
+config["data_file"] = "CT2_part.h5"
 config["model_images"] = "Unet2DBN_muscle_wdscloss.h5"
-config['prediction_folder'] = 'j'
-config["testing_split"] = 'validation_0.2' +'.pkl'
+config['prediction_folder'] = 'CT2_norm'
+config["testing_split"] = 'validation_norm_1.0' +'.pkl'
 
 
 
@@ -63,7 +67,7 @@ config["test_model"] = config["model_images"]
 
 config["batch_size"] = 5
 config["validation_batch_size"] = config['batch_size']
-config["GPU"] = 0
+config["GPU"] = 1
 config["CPU"] = 4
 config['patch_shape'] = None
 config['skip_blank'] = False
@@ -75,7 +79,7 @@ config["training_modalities"] = config["all_modalities"]
 config["threshold"] = 0.5
 config["problem_type"] = "Segmentation"
 
- 
+
 def main(overwrite=False):
      # Step 1: Check if training type is defined
     try:

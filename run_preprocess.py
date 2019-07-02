@@ -14,12 +14,12 @@ config = dict()
 ##
 config["input_type"] = "Image"
 config["input_shape"] = (256,256)
-config["input_images"] = "ImageData_CT"
+config["input_images"] = "ImageData_CT2_preprocessed"
 config["image_format"] = "TIF" # or "NIFTI"
 config["slice_number"] = 0 # Use this if you have a stacked TIF and want only one slice for 2D problems.
                            # slice number goes from 0 to length of Stack
 
-config["output_file"] = "j.h5"
+config["output_file"] = "CT2_test.h5"
 
 config["overwrite"] = 1
 config["problem_type"] = "Segmentation"

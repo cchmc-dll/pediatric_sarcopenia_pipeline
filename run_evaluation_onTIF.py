@@ -11,10 +11,10 @@ import matplotlib.pyplot as plt
 
 
 config = dict()
-config['input_dir'] = 'predictions/j'
+config['input_dir'] = 'predictions/CT2_norm'
 config['truth_img'] = 'truth'
 config['prediction_img'] = 'prediction'
-config['output_file'] = 'CT_2_DSC.csv'
+config['output_file'] = 'CT2_norm_score.csv'
 
 
 
