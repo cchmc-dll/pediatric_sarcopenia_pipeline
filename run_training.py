@@ -324,7 +324,7 @@ def main(overwrite=False):
     earlystop = EarlyStopping(monitor='val_loss', min_delta=0.0001, patience=20, verbose=0, mode='auto')
     checkpoint = AltModelCheckpoint(config["training_model"], model1, monitor="val_loss",save_best_only=True, verbose=1)
     #callbacks = [TrainingMonitor(figPath,jsonPath=jsonPath)]
-    tensorboard = TensorBoard(log_dir=config['monitor']+"\{}".format(time()))
+    tensorboard = TensorBoard(log_dir=os.path.join(config['monitor'], str(time())))
     callbacks = [LearningRateScheduler(step_decay),tensorboard,checkpoint,earlystop]
     
     # print Model Summary
