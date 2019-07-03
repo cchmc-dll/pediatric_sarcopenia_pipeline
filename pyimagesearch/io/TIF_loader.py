@@ -24,7 +24,7 @@ class TIF_loader:
                 subject_ids.append(os.path.basename(subject_dir))
                 subject_files = list()
                 for modality in self.image_modalities + self.mask:
-                    subject_files.append(os.path.join(subject_dir, modality + ".TIF"))
+                    subject_files.append(os.path.join(subject_dir, modality + ".tif"))
                 training_data_files.append(tuple(subject_files))
             self.data_files = training_data_files
             self.ids = subject_ids
@@ -41,7 +41,7 @@ class TIF_loader:
                     subject_ids.append(os.path.basename(subject_dir))
                     subject_files = list()
                     for modality in self.image_modalities + self.mask:
-                        subject_files.append(os.path.join(subject_dir, modality + ".TIF"))
+                        subject_files.append(os.path.join(subject_dir, modality + ".tif"))
                     training_data_files.append(tuple(subject_files))
             self.data_files = training_data_files
             self.ids = subject_ids
