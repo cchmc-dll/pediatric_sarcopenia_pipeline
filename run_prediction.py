@@ -42,7 +42,7 @@ config = dict()
 
 # General Parameters
 
-config["data_file"] = "CT2_part.h5"
+config["data_file"] = "CT2_with_norm_changes.h5"
 config["model_images"] = "Unet2DBN_muscle_wdscloss.h5"
 config['prediction_folder'] = 'CT2_norm'
 config["testing_split"] = 'validation_norm_1.0' +'.pkl'

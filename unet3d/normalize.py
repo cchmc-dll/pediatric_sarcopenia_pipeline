@@ -108,11 +108,6 @@ def normalize_data_storage_2D(data_storage):
         
     mean = np.asarray(means).mean(axis=0)
     std = np.asarray(stds).mean(axis=0)
-
-    # mean = np.array([835.02814])
-    # std = np.array([980.8535])
-    print(f'Normalization mean: {mean}, std: {std}')
-
     for index in range(data_storage.shape[0]):
         data_storage[index] = normalize_data_2D(data_storage[index], mean, std)
         if index == 0:
@@ -144,7 +139,6 @@ def resize_pad(im,desired_size,label=False): # Preserves aspect ratio and resize
     if label:
         im = cv2.resize(im, (new_size[1], new_size[0]),interpolation=cv2.INTER_LINEAR)
         im[im<1] = 0
-        print('Resized image max: ', np.max(im))
     else:
         im = cv2.resize(im, (new_size[1], new_size[0]),interpolation=cv2.INTER_CUBIC)
 
@@ -165,22 +159,22 @@ def reslice_image_set_TIF(in_files, image_shape, out_files=None, label_indices=N
         if (len(tiff.shape) > 2):
             image = tiff[slice_number]
         else:
+            tiff = io.imread(file)
             image = tiff
-        
-        # Check if LABEL
+
+            # Check if LABEL
         label = False
         if f == label_indices:
-                label = True
-                # Only for Muscle Segmentation
-                image[image > 0] = 1
-        
+            label = True
+            # Only for Muscle Segmentation
+            image[image > 0] = 1
+
         # Resize
         if (image_shape[0] != image.shape[0]) or (image_shape[0] != image.shape[1]):
             desired_size = image_shape[0]
-            print('Threshold image max: ', np.max(image))
             image = resize_pad(image,desired_size,label)
-            
-        print('After Resizeing image max: ', np.max(image))
+
+        print('After Resizing image max: ', np.max(image))
         images.append(image)
 
     if out_files:

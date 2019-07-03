@@ -19,13 +19,13 @@ config["image_format"] = "TIF" # or "NIFTI"
 config["slice_number"] = 0 # Use this if you have a stacked TIF and want only one slice for 2D problems.
                            # slice number goes from 0 to length of Stack
 
-config["output_file"] = "CT2_test.h5"
+config["output_file"] = "CT2_with_norm_changes.h5"
 
 config["overwrite"] = 1
 config["problem_type"] = "Segmentation"
 config["image_modalities"] = ["CT"]
-config["image_masks"] = ["Muscle"] #["Label"]   # For Image Masks, will serve as label for segmentation problems
-#config["n_channels"] = 1            # All image channels that will be used as input, image_mask can be input for classification problems and output for segmentation problems.
+config["image_masks"] = ["Muscle" ] #["Label"]   # For Image Masks, will serve as label for segmentation problems
+config["n_channels"] = 0            # All image channels that will be used as input, image_mask can be input for classification problems and output for segmentation problems.
 
 config["clinical_truthname"] =  None # For CSV File
 config["normalize"] = True

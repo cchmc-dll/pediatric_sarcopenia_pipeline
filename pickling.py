@@ -31,7 +31,7 @@ config["n_channels"] = len(config["training_modalities"])
 config["input_shape"] = tuple([config["n_channels"]] + list(config["image_shape"]))
 
 ##
-config["data_file"] = "CT2_test.h5"
+config["data_file"] = "CT2_with_norm_changes.h5"
 config["model_images"] = "CT2_Unet2DBN_muscle_wdscloss.h5"
 config["training_model"] = config["model_images"]
 
