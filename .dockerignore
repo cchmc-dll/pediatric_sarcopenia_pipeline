@@ -1,0 +1,15 @@
+# Datasets
+/datasets
+/ImageData_*
+/output
+/predictions
+/output
+*.h5
+
+# IDE
+/.idea
+L3_Muscle.pyproj
+L3_Muscle.sln
+
+# Other stuff
+/.git
