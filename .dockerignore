@@ -4,7 +4,6 @@
 /output
 /predictions
 /output
-*.h5
 
 # IDE
 /.idea
