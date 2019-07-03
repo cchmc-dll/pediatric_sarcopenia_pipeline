@@ -64,17 +64,17 @@ config["n_channels"] = len(config["training_modalities"])
 config["input_shape"] = tuple([config["n_channels"]] + list(config["image_shape"]))
 
 ##
-config["data_file"] = "CT_190PTS.h5"
-config["model_images"] = "Unet2DBN_muscle_wdscloss.h5"
+config["data_file"] = "CT2_with_norm_changes.h5"
+config["model_images"] = "Unet2DBN_muscle_wdscloss_ct2.h5"
 config["training_model"] = config["model_images"]
 
 config["monitor"] = 'output'
 config["data_split"] = 0.80
-config["training_split"] = "training_" + str(round(config["data_split"],2)) + '.pkl'
-config["validation_split"] = "validation_" + str(round(1-config["data_split"],2)) + '.pkl'
+config["training_split"] = "training_7-3_" + str(round(config["data_split"],2)) + '.pkl'
+config["validation_split"] = "validation_7-3_" + str(round(1-config["data_split"],2)) + '.pkl'
 
 config['GPU'] = 1
-config['CPU'] = 12
+config['CPU'] = 4
 config['batch_size'] = 4
 config['n_epochs'] = 500
 config['patch_shape'] = None
@@ -294,7 +294,7 @@ def main(overwrite=False):
     elif input_type is "Image":
         # create the MLP and CNN models
         model1 = Unet2D_BN.build(config['input_shape'],config["n_labels"])
-        plot_model(model1, to_file="Unet-2D.png", show_shapes=True)
+        # plot_model(model1, to_file="Unet-2D.png", show_shapes=True)
     elif input_type is "Clinical":
         # create the MLP and CNN models
         model1 = MLP.build(dim=config['CL_features'],num_outputs=2,branch=False)

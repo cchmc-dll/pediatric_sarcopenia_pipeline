@@ -36,9 +36,9 @@ config["model_images"] = "CT2_Unet2DBN_muscle_wdscloss.h5"
 config["training_model"] = config["model_images"]
 
 config["monitor"] = 'output'
-config["data_split"] = 0.0
-config["training_split"] = "training_norm_" + str(round(config["data_split"],2)) + '.pkl'
-config["validation_split"] = "validation_norm_" + str(round(1-config["data_split"],2)) + '.pkl'
+config["data_split"] = 0.8
+config["training_split"] = "training_7-3_" + str(round(config["data_split"],2)) + '.pkl'
+config["validation_split"] = "validation_7-3_" + str(round(1-config["data_split"],2)) + '.pkl'
 
 # config['GPU'] = 1
 # config['CPU'] = 12
