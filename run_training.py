@@ -64,8 +64,8 @@ config["n_channels"] = len(config["training_modalities"])
 config["input_shape"] = tuple([config["n_channels"]] + list(config["image_shape"]))
 
 ##
-config["data_file"] = "CT2_with_norm_changes.h5"
-config["model_images"] = "Unet2DBN_muscle_wdscloss_ct2.h5"
+config["data_file"] = "CT_190PTS.h5"
+config["model_images"] = "Unet2DBN_muscle_wdscloss_2.h5"
 config["training_model"] = config["model_images"]
 
 config["monitor"] = 'output'
@@ -75,7 +75,7 @@ config["validation_split"] = "validation_7-3_" + str(round(1-config["data_split"
 
 config['GPU'] = 2
 config['CPU'] = 12
-config['batch_size'] = 2
+config['batch_size'] = 1
 config['n_epochs'] = 10
 config['patch_shape'] = None
 config['skip_blank'] = False
