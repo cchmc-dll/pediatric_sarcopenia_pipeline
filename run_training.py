@@ -70,8 +70,8 @@ config["training_model"] = config["model_images"]
 
 config["monitor"] = 'output'
 config["data_split"] = 0.80
-config["training_split"] = "training_7-3_" + str(round(config["data_split"],2)) + '.pkl'
-config["validation_split"] = "validation_7-3_" + str(round(1-config["data_split"],2)) + '.pkl'
+config["training_split"] = "training_" + str(round(config["data_split"],2)) + '.pkl'
+config["validation_split"] = "validation_" + str(round(1-config["data_split"],2)) + '.pkl'
 
 config['GPU'] = 2
 config['CPU'] = 12
