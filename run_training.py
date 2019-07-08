@@ -1,3 +1,4 @@
+import zlib # this needs to be before tables is imported... https://github.com/PyTables/PyTables/issues/644
 import os
 import glob
 import cmd
@@ -73,9 +74,9 @@ config["data_split"] = 0.80
 config["training_split"] = "training_" + str(round(config["data_split"],2)) + '.pkl'
 config["validation_split"] = "validation_" + str(round(1-config["data_split"],2)) + '.pkl'
 
-config['GPU'] = 2
+config['GPU'] = 1
 config['CPU'] = 12
-config['batch_size'] = 1
+config['batch_size'] = 4
 config['n_epochs'] = 10
 config['patch_shape'] = None
 config['skip_blank'] = False
@@ -325,7 +326,9 @@ def main(overwrite=False):
     checkpoint = AltModelCheckpoint(config["training_model"], model1, monitor="val_loss",save_best_only=True, verbose=1)
     #callbacks = [TrainingMonitor(figPath,jsonPath=jsonPath)]
     tensorboard = TensorBoard(log_dir=os.path.join(config['monitor'], str(time())))
-    callbacks = [LearningRateScheduler(step_decay),tensorboard,checkpoint,earlystop]
+    #callbacks = [LearningRateScheduler(step_decay),tensorboard,checkpoint,earlystop]
+    #callbacks = [LearningRateScheduler(step_decay)]
+    callbacks = []
     
     # print Model Summary
     print('Training Model')

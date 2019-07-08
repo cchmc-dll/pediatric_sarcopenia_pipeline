@@ -3,17 +3,27 @@
 
 FROM tensorflow/tensorflow:1.13.1-gpu-py3
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      bzip2 \
+      g++ \
+      git \
+      graphviz \
+      libgl1-mesa-glx \
+      libhdf5-serial-dev \
+      openmpi-bin \
+      wget \
+      libxext6 libsm6 libxrender-dev && \
+    rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt /opt/app/requirements.txt
 WORKDIR /opt/app
-RUN pip install -r requirements.txt
-COPY . /opt/app
 
-#FROM continuumio/miniconda3
-#COPY environment_linux.yml /opt/app/
-#
-#WORKDIR /opt/app
-##RUN ["conda", "env", "create", "-f", "environment_linux.yml"]
-##RUN ["conda activate tensorflow"]
-#
+RUN pip install -r requirements.txt
+RUN pip install git+https://github.com/PyTables/PyTables.git@v3.5.2
+# Install PyTables from source
+# COPY ./PyTables /opt/app/PyTables
+# WORKDIR /opt/app/PyTables
+# RUN python setup.py install
+# WORKDIR /opt/app
+
 COPY . /opt/app
-CMD [ "python", "./run_preprocess.py" ]
