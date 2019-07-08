@@ -73,10 +73,10 @@ config["data_split"] = 0.80
 config["training_split"] = "training_" + str(round(config["data_split"],2)) + '.pkl'
 config["validation_split"] = "validation_" + str(round(1-config["data_split"],2)) + '.pkl'
 
-config['GPU'] = 1
-config['CPU'] = 12 
-config['batch_size'] = 4
-config['n_epochs'] = 500
+config['GPU'] = 2
+config['CPU'] = 12
+config['batch_size'] = 2
+config['n_epochs'] = 10
 config['patch_shape'] = None
 config['skip_blank'] = False
 
