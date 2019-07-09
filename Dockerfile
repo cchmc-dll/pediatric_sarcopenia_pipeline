@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt /opt/app/requirements.txt
 WORKDIR /opt/app
 
-RUN pip install -r requirements.txt
+RUN pip install --default-timeout=60 -r requirements.txt
 RUN pip install git+https://github.com/PyTables/PyTables.git@v3.5.2
 # Install PyTables from source
 # COPY ./PyTables /opt/app/PyTables
