@@ -2,6 +2,8 @@ import zlib # this needs to be before tables is imported... https://github.com/P
 import os
 import glob
 import cmd
+from argparse import ArgumentParser
+
 from pyimagesearch.nn.conv import *
 import numpy as np
 import pandas as pd
@@ -77,7 +79,7 @@ config["validation_split"] = "validation_" + str(round(1-config["data_split"],2)
 config['GPU'] = 1
 config['CPU'] = 12
 config['batch_size'] = 4
-config['n_epochs'] = 10
+config['n_epochs'] = 1
 config['patch_shape'] = None
 config['skip_blank'] = False
 
@@ -144,21 +146,39 @@ def split_list(input_list, split=0.8, shuffle_list=True):
     testing = input_list[n_training:]
     return training, testing
 
+
 def step_decay(epoch):
-	# initialize the base initial learning rate, drop factor, and
-	# epochs to drop every
-	initAlpha = 1e-3
-	factor = 0.5   # 0.75
-	dropEvery = 10 # 5
+    # initialize the base initial learning rate, drop factor, and
+    # epochs to drop every
+    initAlpha = 1e-3
+    factor = 0.5  # 0.75
+    dropEvery = 10  # 5
 
-	# compute learning rate for the current epoch
-	alpha = initAlpha * (factor ** np.floor((1 + epoch) / dropEvery))
+    # compute learning rate for the current epoch
+    alpha = initAlpha * (factor ** np.floor((1 + epoch) / dropEvery))
 
-	# return the learning rate
-	return float(alpha)
+    # return the learning rate
+    return float(alpha)
+
+
+def parse_command_line_arguments():
+    parser = ArgumentParser()
+
+    parser.add_argument(
+        '--model_output_path',
+        default=config['training_model'],
+        help='Location where trained model will be saved'
+    )
+
+    return parser.parse_args()
+
 
 def main(overwrite=False):
-# Step 1: Check if training type is defined
+    args = parse_command_line_arguments()
+    config['model_images'] = args.model_output_path
+    config['training_model'] = args.model_output_path
+
+    # Step 1: Check if training type is defined
     try:
         input_type = config["input_type"]
     except:
@@ -326,9 +346,8 @@ def main(overwrite=False):
     checkpoint = AltModelCheckpoint(config["training_model"], model1, monitor="val_loss",save_best_only=True, verbose=1)
     #callbacks = [TrainingMonitor(figPath,jsonPath=jsonPath)]
     tensorboard = TensorBoard(log_dir=os.path.join(config['monitor'], str(time())))
-    #callbacks = [LearningRateScheduler(step_decay),tensorboard,checkpoint,earlystop]
-    #callbacks = [LearningRateScheduler(step_decay)]
-    callbacks = []
+    callbacks = [LearningRateScheduler(step_decay),tensorboard,checkpoint,earlystop]
+
     
     # print Model Summary
     print('Training Model')

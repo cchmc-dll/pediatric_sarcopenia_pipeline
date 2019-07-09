@@ -7,6 +7,18 @@
 
 /.idea
 
+
+# Ignore all logfiles and tempfiles.
+/log/*
+/tmp/*
+!/log/.keep
+!/tmp/.keep
+
+/from_remote/*
+!/from_remote/.keep
+/from_remote/training_output/*
+!/from_remote_training_output/.keep
+
 # From python gitignore file
 # Byte-compiled / optimized / DLL files
 __pycache__/
