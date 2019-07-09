@@ -357,7 +357,7 @@ def main(overwrite=False):
     plt.xlabel("Epoch #")
     plt.ylabel("Loss")
     plt.legend()
-    figpath_final = config["input_type"]+'_loss.png'
+    figpath_final = 'datasets/' + config["input_type"]+'_loss.png'
     plt.savefig(figpath_final)
     plt.show()
 
@@ -368,7 +368,7 @@ def main(overwrite=False):
     plt.xlabel("Epoch #")
     plt.ylabel("Accuracy")
     plt.legend()
-    figpath_final = config["input_type"]+'_acc.png'
+    figpath_final = 'datasets/' + config["input_type"]+'_acc.png'
     plt.savefig(figpath_final)
     plt.show()
 
