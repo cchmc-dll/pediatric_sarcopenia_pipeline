@@ -1,6 +1,7 @@
 import os
 import tarfile
 
+from datetime import datetime
 from fabric import task
 from gitignore_parser import parse_gitignore
 from pathlib import PurePosixPath, Path
@@ -32,27 +33,32 @@ local_training_output_dir = local_root / 'from_remote' / 'training_output'
 
 """
 USAGE: 
-fab --prompt-for-login-password -H dockeruser@10.1.32.31 run-training
+fab --prompt-for-login-password -H dockeruser@10.1.32.31 run-training --run_name=[NAME]
 
 """
 @task
-def run_training(c):
+def run_training(c, run_name):
+    run_dir_name = build_run_dir_name(run_name)
+
     make_app_target_dir(c)
     zip_app_locally()
     copy_app_to_remote(c)
     unzip_app_on_remote(c)
-    create_run_output_dir(c)
+    create_run_output_dir(c, run_output_dirname=run_dir_name)
     build_docker_image(c)
 
-    docker_run_output_dir = docker_training_output_dir / 'td'
-    remote_run_output_dir = training_output_dir / 'td'
+    docker_run_output_dir = docker_training_output_dir / run_dir_name
+    remote_run_output_dir = training_output_dir / run_dir_name
 
     # create_remote_training_output_dir(c, output_dir=docker_run_output_dir)
     run_docker_image_for_training(c, output_dir=docker_run_output_dir)
 
-    retrieve_training_output(c, remote_dir=remote_run_output_dir, local_dir=local_training_output_dir)
-
-    c.run(f'ls -la {app_target_dir}')
+    retrieve_training_output(
+        c,
+        remote_dir=remote_run_output_dir,
+        local_dir=local_training_output_dir,
+        run_dir_name=run_dir_name
+    )
 
 
 def make_app_target_dir(c):
@@ -89,12 +95,17 @@ def unzip_app_on_remote(c):
     c.run(f'rm {remote_archive_path}')
 
 
-def create_run_output_dir(c, run_output_dirname='td'):
+def create_run_output_dir(c, run_output_dirname):
     c.run(f'mkdir -p {training_output_dir / run_output_dirname}')
 
 
 def build_docker_image(c):
     c.run(f'cd {app_target_dir} && ' + docker_build_cmd)
+
+
+def build_run_dir_name(run_name):
+    datetime_tag = datetime.now().strftime('%Y%m%d-%H%M%S')
+    return f'{run_name}_{datetime_tag}'
 
 
 def run_docker_image_for_training(c, output_dir):
@@ -115,13 +126,13 @@ def docker_run_cmd(args):
     )
 
 
-def retrieve_training_output(c, remote_dir, local_dir):
-    remote_tar_file_path = training_output_dir / 'td.tar.gz'
-    c.run(f'tar -czvf {remote_tar_file_path} -C {training_output_dir} td')
+def retrieve_training_output(c, remote_dir, local_dir, run_dir_name):
+    remote_tar_file_path = training_output_dir / f'{run_dir_name}.tar.gz'
+    c.run(f'tar -czvf {remote_tar_file_path} -C {training_output_dir} {run_dir_name}')
 
     ensure_dir_exists(local_training_output_dir)
 
-    local_tarfile_path = local_training_output_dir / 'td.tar.gz'
+    local_tarfile_path = local_training_output_dir / f'{run_dir_name}.tar.gz'
     c.get(remote_tar_file_path, local_tarfile_path)
 
     with tarfile.open(local_tarfile_path, 'r:gz') as archive:
@@ -132,6 +143,6 @@ def retrieve_training_output(c, remote_dir, local_dir):
 
 def ensure_dir_exists(path):
     try:
-        os.mkdir(local_training_output_dir)
+        os.mkdir(path)
     except FileExistsError:
         pass
