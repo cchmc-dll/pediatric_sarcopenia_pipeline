@@ -1,1 +1,2 @@
 fabric==2.4.0
+git+https://github.com/butteredptarmigan/gitignore_parser.git@b3b372e50fca54d676457bcf45298cdfc30b76e3

@@ -1,10 +1,8 @@
-import glob
 import os
-import shutil
-import subprocess
 import tarfile
 
 from fabric import task
+from gitignore_parser import parse_gitignore
 from pathlib import PurePosixPath, Path
 
 user = 'dockeruser'
@@ -31,6 +29,12 @@ archive_path = local_root / 'tmp' / 'repo.tar.gz'
 local_training_output_dir = local_root / 'from_remote' / 'training_output'
 
 
+
+"""
+USAGE: 
+fab --prompt-for-login-password -H dockeruser@10.1.32.31 run-training
+
+"""
 @task
 def run_training(c):
     make_app_target_dir(c)
@@ -62,7 +66,7 @@ def zip_app_locally():
 
 def exclude_select_dirs(path):
     try:
-        return is_hidden_dir(path) or is_tmp_dir(path)
+        return is_hidden_dir(path) or is_in_gitignore(Path(os.getcwd(), path))
     except IndexError:
         return False
 
@@ -71,8 +75,7 @@ def is_hidden_dir(path):
     return os.path.isdir(path) and os.path.split(path)[1][0] == '.'
 
 
-def is_tmp_dir(path):
-    return os.path.isdir(path) and os.path.split(path)[1] == 'tmp'
+is_in_gitignore = parse_gitignore('.gitignore', base_dir=os.getcwd())
 
 
 def copy_app_to_remote(c):
@@ -114,9 +117,21 @@ def docker_run_cmd(args):
 
 def retrieve_training_output(c, remote_dir, local_dir):
     remote_tar_file_path = training_output_dir / 'td.tar.gz'
-    c.run(f'tar -czvf {remote_tar_file_path} {remote_dir}')
+    c.run(f'tar -czvf {remote_tar_file_path} -C {training_output_dir} td')
+
+    ensure_dir_exists(local_training_output_dir)
 
     local_tarfile_path = local_training_output_dir / 'td.tar.gz'
     c.get(remote_tar_file_path, local_tarfile_path)
 
-    subprocess.check_call(f'python -m tarfile -e {local_tarfile_path}')
+    with tarfile.open(local_tarfile_path, 'r:gz') as archive:
+        archive.extractall(path=local_training_output_dir)
+
+    os.remove(local_tarfile_path)
+
+
+def ensure_dir_exists(path):
+    try:
+        os.mkdir(local_training_output_dir)
+    except FileExistsError:
+        pass
