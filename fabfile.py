@@ -30,14 +30,15 @@ archive_path = local_root / 'tmp' / 'repo.tar.gz'
 local_training_output_dir = local_root / 'from_remote' / 'training_output'
 
 
-
-"""
-USAGE: 
-fab --prompt-for-login-password -H dockeruser@10.1.32.31 run-training --run_name=[NAME]
-
-"""
 @task
 def run_training(c, run_name):
+    """
+    Install deploy-requirements.txt first with: pip install -r deploy-requirements.txt
+
+    USAGE:
+    fab --prompt-for-login-password -H dockeruser@10.1.32.31 run-training --run_name=[NAME]
+
+    """
     run_dir_name = build_run_dir_name(run_name)
 
     make_app_target_dir(c)
@@ -48,17 +49,10 @@ def run_training(c, run_name):
     build_docker_image(c)
 
     docker_run_output_dir = docker_training_output_dir / run_dir_name
-    remote_run_output_dir = training_output_dir / run_dir_name
 
-    # create_remote_training_output_dir(c, output_dir=docker_run_output_dir)
     run_docker_image_for_training(c, output_dir=docker_run_output_dir)
 
-    retrieve_training_output(
-        c,
-        remote_dir=remote_run_output_dir,
-        local_dir=local_training_output_dir,
-        run_dir_name=run_dir_name
-    )
+    retrieve_training_output(c, run_dir_name=run_dir_name)
 
 
 def make_app_target_dir(c):
@@ -126,7 +120,7 @@ def docker_run_cmd(args):
     )
 
 
-def retrieve_training_output(c, remote_dir, local_dir, run_dir_name):
+def retrieve_training_output(c, run_dir_name):
     remote_tar_file_path = training_output_dir / f'{run_dir_name}.tar.gz'
     c.run(f'tar -czvf {remote_tar_file_path} -C {training_output_dir} {run_dir_name}')
 
