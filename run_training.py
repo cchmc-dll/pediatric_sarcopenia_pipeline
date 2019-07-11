@@ -61,6 +61,13 @@ from tensorflow.python.keras.callbacks import TensorBoard
 # config['patch_shape'] = None
 # config['skip_blank'] = False
 
+"""
+python run_training.py --training_model_name=arg_model.h5 --data_file='
+./datasets/CT_190PTS.h5' --data_split=0.8 --training_split='datasets/training_0.8.pkl' --validation_split='datasets/validation_0.2.pkl' --n_epochs=
+1 --image_masks=Muscle --problem_type=Segmentation -o "." --labels=1 --all_modalities=CT --training_modalities=CT
+"""
+
+
 def create_validation_split(problem_type,data, training_file, validation_file,data_split=0.9,testing_file=None, valid_test_split=0,overwrite=0):
     """
     Splits the data into the training and validation indices list.
@@ -164,30 +171,40 @@ def parse_command_line_arguments():
     parser.add_argument('--overwrite', default=1, type=int, help='0=false, 1=true')
     parser.add_argument('--show_plots', action='store_true', help='Shows the plots with matplotlib')
 
+    parser.add_argument('--labels', default='1', help='Comma separated list of the label numbers on the input image')
+    parser.add_argument('--all_modalities', default='CT', help='Comma separated list of desired image modalities')
+    parser.add_argument('--training_modalities', help='Comma separated list of desired image modalities for training only')
+
     return parser.parse_args()
 
 
-def build_config_dict(cmdline_args):
-    config = vars(cmdline_args)
-
-    config["labels"] = (1,)  # the label numbers on the input image
+def build_config_dict(config):
+    config["labels"] = tuple(config['labels'].split(','))  # the label numbers on the input image
     config["n_labels"] = len(config["labels"])
-    config["all_modalities"] =  ["CT"] #["Input"]
-    config["training_modalities"] = config["all_modalities"]  # change this if you want to only use some of the modalities
-    config["n_channels"] = len(config["training_modalities"])
-    config["input_shape"] = tuple([config["n_channels"]] + list(config["image_shape"]))
+
+    config['all_modalities'] = config['all_modalities'].split(',')
+
+    try:
+        config["training_modalities"] = config['training_modalities'].split(',')  # change this if you want to only use some of the modalities
+    except AttributeError:
+        config["training_modalities"] = config['all_modalities']
 
     # calculated values from cmdline_args
+    config["n_channels"] = len(config["training_modalities"])
+    config["input_shape"] = tuple([config["n_channels"]] + list(config["image_shape"]))
     config['image_masks'] = config['image_masks'].split(',')
     config['training_model'] = os.path.join(config['output_dir'], config['training_model_name'])
 
     return config
 
 
-def main(overwrite=False):
+def main():
     args = parse_command_line_arguments()
-    config = build_config_dict(args)
+    config = build_config_dict(vars(args))
+    run_training(config)
 
+
+def run_training(config):
     # Step 1: Check if training type is defined
     try:
         input_type = config["input_type"]
@@ -402,6 +419,7 @@ def main(overwrite=False):
     plt.savefig(figpath_final)
     if config['show_plots']:
         plt.show()
+
 
 if __name__ == "__main__":
     main()
