@@ -103,8 +103,33 @@ def build_run_dir_name(run_name):
 
 
 def run_docker_image_for_training(c, output_dir):
-    model_output_path = output_dir / 'test.h5'
-    c.run(docker_run_cmd(f'python run_training.py --model_output_path {model_output_path}'))
+    program_options = build_program_options(output_dir)
+    program_cmd = (
+        "python run_training.py "
+        "--training_model={training_model} "
+        "--data_file={data_file} "
+        "--data_split={data_split} "
+        "--training_split={training_split} "
+        "--validation_split={validation_split} "
+        "--n_epochs={n_epochs} "
+        "--image_masks={image_masks} "
+        "--problem_type={problem_type} "
+    ).format(**program_options)
+
+    c.run(docker_run_cmd(program_cmd))
+
+
+def build_program_options(output_dir):
+    return dict(
+        training_model=output_dir / 'test.h5',
+        data_file='datasets/CT_190PTS.h5',
+        data_split=0.8,
+        training_split='datasets/training_0.8.pkl',
+        validation_split='datasets/validation_0.2.pkl',
+        n_epochs='5',
+        image_masks='Muscle',
+        problem_type='Segmentation',
+    )
 
 
 def docker_run_cmd(args):

@@ -1,87 +1,81 @@
-import zlib # this needs to be before tables is imported... https://github.com/PyTables/PyTables/issues/644
-import os
-import glob
-import cmd
 from argparse import ArgumentParser
-
-from pyimagesearch.nn.conv import *
-import numpy as np
-import pandas as pd
 import tables
-from random import shuffle
 from pyimagesearch.nn.conv.MLP import MLP, MLP10
 from pyimagesearch.nn.conv.Resnet3D import Resnet3D
 from pyimagesearch.nn.conv.Unet2D import Unet2D,Unet2D_BN
-from unet3d.normalize import normalize_data_storage,normalize_clinical_storage
-from unet3d.utils.utils import pickle_dump, pickle_load
-from sklearn import preprocessing
-from sklearn.metrics import classification_report
-import keras
-from keras.utils import np_utils
 from keras.utils import plot_model
 from keras.optimizers import SGD, Adam
-from pyimagesearch.callbacks import TrainingMonitor
-from keras.callbacks import ModelCheckpoint
 from keras.callbacks import EarlyStopping
 from keras.callbacks import LearningRateScheduler
 from keras.utils.training_utils import multi_gpu_model
 from alt_model_checkpoint import AltModelCheckpoint
-from imutils import paths
 import matplotlib.pyplot as plt
-import imutils
-import cv2
-import os
 from pyimagesearch.utils.generator_utils_Elan import *
 from keras import Model
 from pyimagesearch.callbacks.datagenerator import *
 from keras.layers import concatenate
 from keras.layers.core import Dense
 from sklearn.model_selection import train_test_split
-from unet3d.metrics import(dice_coefficient, dice_coefficient_loss, dice_coef, dice_coef_loss,dice_coefficient_monitor,
-                            weighted_dice_coefficient_loss_2D, weighted_dice_coefficient_2D)
+from unet3d.metrics import dice_coefficient_monitor, weighted_dice_coefficient_loss_2D
+
 # Tensorboard specific imports
 from time import time
 from tensorflow.python.keras.callbacks import TensorBoard
 
 
 # Define Problem Configuration:
-config = dict()
 ##
-config["input_type"] = "Image"
-config["image_shape"] = (256,256)
-config["input_images"] = "ImageData"
-
-config["overwrite"] = 1
-config["problem_type"] = "Segmentation"
-config["image_masks"] = ["Muscle"] #["Mask"] #["Label"]   # For Image Masks, will serve as label for segmentation problems
-#config["n_channels"] = 1            # All image channels that will be used as input, image_mask can be input for classification problems and output for segmentation problems.
-
-config["normalize"] = False
-
-config["labels"] = (1,)  # the label numbers on the input image
-config["n_labels"] = len(config["labels"])
-
-config["all_modalities"] =  ["CT"] #["Input"]
-config["training_modalities"] = config["all_modalities"]  # change this if you want to only use some of the modalities
-config["n_channels"] = len(config["training_modalities"])
-config["input_shape"] = tuple([config["n_channels"]] + list(config["image_shape"]))
+# config["input_type"] = "Image"
+# config["image_shape"] = (256,256)
+# config["input_images"] = "ImageData"
+#
+# config["overwrite"] = 1
+# config["problem_type"] = "Segmentation"
+# config["image_masks"] = ["Muscle"] #["Mask"] #["Label"]   # For Image Masks, will serve as label for segmentation problems
+# #config["n_channels"] = 1            # All image channels that will be used as input, image_mask can be input for classification problems and output for segmentation problems.
+#
+# config["normalize"] = False
+#
+# config["labels"] = (1,)  # the label numbers on the input image
+# config["n_labels"] = len(config["labels"])
+#
+# config["all_modalities"] =  ["CT"] #["Input"]
+# config["training_modalities"] = config["all_modalities"]  # change this if you want to only use some of the modalities
+# config["n_channels"] = len(config["training_modalities"])
+# config["input_shape"] = tuple([config["n_channels"]] + list(config["image_shape"]))
 
 ##
-config["data_file"] = "CT_190PTS.h5"
-config["model_images"] = "Unet2DBN_muscle_wdscloss_2.h5"
-config["training_model"] = config["model_images"]
+# config["data_file"] = "CT_190PTS.h5"
+# config["model_images"] = "Unet2DBN_muscle_wdscloss_2.h5"
+# config["training_model"] = config["model_images"]
+#
+# config["monitor"] = 'output'
+# config["data_split"] = 0.80
+# config["training_split"] = "training_" + str(round(config["data_split"],2)) + '.pkl'
+# config["validation_split"] = "validation_" + str(round(1-config["data_split"],2)) + '.pkl'
+#
+# config['GPU'] = 2
+# config['CPU'] = 12
+# config['batch_size'] = 4
+# config['n_epochs'] = 10
+# config['patch_shape'] = None
+# config['skip_blank'] = False
 
-config["monitor"] = 'output'
-config["data_split"] = 0.80
-config["training_split"] = "training_" + str(round(config["data_split"],2)) + '.pkl'
-config["validation_split"] = "validation_" + str(round(1-config["data_split"],2)) + '.pkl'
 
-config['GPU'] = 2
-config['CPU'] = 12
-config['batch_size'] = 4
-config['n_epochs'] = 10
-config['patch_shape'] = None
-config['skip_blank'] = False
+"""
+USAGE:
+
+python run_training.py \
+     --training_model='./arg_model.h5' \
+     --data_file='./datasets/CT_190PTS.h5' \
+     --data_split=0.8 \
+     --training_split='datasets/training_0.8.pkl' \
+     --validation_split='datasets/validation_0.2.pkl' \
+     --n_epochs=8 \
+     --image_masks=Muscle \
+     --problem_type=Segmentation \
+"""
+
 
 def create_validation_split(problem_type,data, training_file, validation_file,data_split=0.9,testing_file=None, valid_test_split=0,overwrite=0):
     """
@@ -164,19 +158,72 @@ def step_decay(epoch):
 def parse_command_line_arguments():
     parser = ArgumentParser()
 
-    parser.add_argument(
-        '--model_output_path',
-        default=config['training_model'],
+    req_group = parser.add_argument_group(title='Required flags')
+    req_group.add_argument(
+        '--training_model',
+        required=True,
         help='Location where trained model will be saved'
     )
+
+    req_group.add_argument(
+        '--data_file',
+        required=True,
+        help='Source of images to train with'
+    )
+
+    req_group.add_argument(
+        '--training_split',
+        required=True,
+        help='.pkl file with the training data split'
+    )
+
+    req_group.add_argument(
+        '--validation_split',
+        required=True,
+        help='.pkl file with the validation data split'
+    )
+
+    req_group.add_argument(
+        '--data_split',
+        required=True,
+        type=float,
+        default=0.8
+    )
+    req_group.add_argument('--n_epochs', required=True, type=int)
+    req_group.add_argument('--image_masks', required=True, help='Comma separated list of mask names, ex: Muscle,Bone,Liver')
+    req_group.add_argument('--problem_type', required=True, help='Segmentation, Classification, or Regression, default=Segmentation')
+
+    parser.add_argument('--GPU', default=1, help='Number of GPUs to use, default=1')
+    parser.add_argument('--CPU', default=4, help='Number of CPU cores to use, default=4')
+    parser.add_argument('--batch_size', default=4)
+    parser.add_argument('--patch_shape', default=None)
+    parser.add_argument('--skip_blank', default=False)
+    parser.add_argument('--input_type', default='Image')
+    parser.add_argument('--image_shape', default=(256, 256))
+    parser.add_argument('--monitor', default='output', help='directory where monitor output goes')
+    parser.add_argument('--overwrite', default=1, type=int, help='0=false, 1=true')
+    parser.add_argument('--show_plots', action='store_true')
 
     return parser.parse_args()
 
 
+def build_config_dict(cmdline_args):
+    config = vars(cmdline_args)
+
+    config["labels"] = (1,)  # the label numbers on the input image
+    config["n_labels"] = len(config["labels"])
+    config["all_modalities"] =  ["CT"] #["Input"]
+    config["training_modalities"] = config["all_modalities"]  # change this if you want to only use some of the modalities
+    config["n_channels"] = len(config["training_modalities"])
+    config["input_shape"] = tuple([config["n_channels"]] + list(config["image_shape"]))
+    config['image_masks'] = config['image_masks'].split(',')
+
+    return config
+
+
 def main(overwrite=False):
     args = parse_command_line_arguments()
-    config['model_images'] = args.model_output_path
-    config['training_model'] = args.model_output_path
+    config = build_config_dict(args)
 
     # Step 1: Check if training type is defined
     try:
@@ -192,13 +239,13 @@ def main(overwrite=False):
              
 # Step 2: Check if the Data File is defined and open it
     try:
-        data_file = tables.open_file(os.path.abspath(os.path.join('datasets',config["data_file"])),mode='r')
+        data_file = tables.open_file(os.path.abspath(os.path.join(config["data_file"])), mode='r')
     except:
         raise Exception("Error: Could not open data file, check if config[\"data_file\"] is defined \n")
 
 # Step 3: LOAD DATA
-    training_file = os.path.abspath(os.path.join('datasets',config['training_split']))
-    validation_file = os.path.abspath(os.path.join('datasets',config['validation_split']))
+    training_file = os.path.abspath(config['training_split'])
+    validation_file = os.path.abspath(config['validation_split'])
     if 'testing_split' in config:
         testing_file = os.path.abspath(os.path.join('datasets',config['testing_split']))
     if data_file.__contains__('/truth'):
@@ -378,7 +425,8 @@ def main(overwrite=False):
     plt.legend()
     figpath_final = 'datasets/' + config["input_type"]+'_loss.png'
     plt.savefig(figpath_final)
-    plt.show()
+    if config['show_plots']:
+        plt.show()
 
     plt.figure()
     plt.plot(np.arange(0, Fepochs), H.history["acc"], label="train_accuracy")
@@ -389,7 +437,8 @@ def main(overwrite=False):
     plt.legend()
     figpath_final = 'datasets/' + config["input_type"]+'_acc.png'
     plt.savefig(figpath_final)
-    plt.show()
+    if config['show_plots']:
+        plt.show()
 
 if __name__ == "__main__":
-    main(overwrite=config["overwrite"])
+    main()
