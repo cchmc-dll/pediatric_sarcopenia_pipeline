@@ -1,3 +1,4 @@
+import sys
 from argparse import ArgumentParser
 import tables
 from pyimagesearch.nn.conv.MLP import MLP, MLP10
@@ -159,50 +160,26 @@ def parse_command_line_arguments():
     parser = ArgumentParser()
 
     req_group = parser.add_argument_group(title='Required flags')
-    req_group.add_argument(
-        '--training_model',
-        required=True,
-        help='Location where trained model will be saved'
-    )
-
-    req_group.add_argument(
-        '--data_file',
-        required=True,
-        help='Source of images to train with'
-    )
-
-    req_group.add_argument(
-        '--training_split',
-        required=True,
-        help='.pkl file with the training data split'
-    )
-
-    req_group.add_argument(
-        '--validation_split',
-        required=True,
-        help='.pkl file with the validation data split'
-    )
-
-    req_group.add_argument(
-        '--data_split',
-        required=True,
-        type=float,
-        default=0.8
-    )
+    req_group.add_argument('--training_model', required=True, help='Location where trained model will be saved')
+    req_group.add_argument('--data_file', required=True, help='Source of images to train with')
+    req_group.add_argument('--training_split', required=True, help='.pkl file with the training data split')
+    req_group.add_argument('--validation_split', required=True, help='.pkl file with the validation data split')
+    req_group.add_argument('--data_split', required=True, type=float, default=0.8)
     req_group.add_argument('--n_epochs', required=True, type=int)
     req_group.add_argument('--image_masks', required=True, help='Comma separated list of mask names, ex: Muscle,Bone,Liver')
     req_group.add_argument('--problem_type', required=True, help='Segmentation, Classification, or Regression, default=Segmentation')
+    # req_group.add_argument('-o,', '--output_dir', required=True, help='Path to directory where output files will be saved')
 
-    parser.add_argument('--GPU', default=1, help='Number of GPUs to use, default=1')
-    parser.add_argument('--CPU', default=4, help='Number of CPU cores to use, default=4')
-    parser.add_argument('--batch_size', default=4)
+    parser.add_argument('--GPU', default=1, type=int, help='Number of GPUs to use, default=1')
+    parser.add_argument('--CPU', default=4, type=int, help='Number of CPU cores to use, default=4')
+    parser.add_argument('--batch_size', default=4, type=int)
     parser.add_argument('--patch_shape', default=None)
-    parser.add_argument('--skip_blank', default=False)
+    parser.add_argument('--skip_blank', action='store_true')
     parser.add_argument('--input_type', default='Image')
     parser.add_argument('--image_shape', default=(256, 256))
     parser.add_argument('--monitor', default='output', help='directory where monitor output goes')
     parser.add_argument('--overwrite', default=1, type=int, help='0=false, 1=true')
-    parser.add_argument('--show_plots', action='store_true')
+    parser.add_argument('--show_plots', action='store_true', help='Shows the plots with matplotlib')
 
     return parser.parse_args()
 

@@ -3,6 +3,7 @@ data_file: 'datasets/CT_190PTS.h5'
 data_split: 0.8
 training_split: 'datasets/training_0.8.pkl'
 validation_split: 'datasets/validation_0.2.pkl'
-n_epochs: '5'
+n_epochs: 35
 image_masks: 'Muscle'
 problem_type: 'Segmentation'
+GPU: 2

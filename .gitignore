@@ -17,10 +17,8 @@
 
 /from_remote/*
 !/from_remote/.keep
-/from_remote/training_output/*
-!/from_remote/training_output/.keep
 
-# From python gitignore file
+# From python gitignor file
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

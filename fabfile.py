@@ -35,29 +35,26 @@ local_training_output_dir = local_root / 'from_remote' / 'training_output'
 @task
 def run_training(c, run_name):
     """
-    Install deploy-requirements.txt first with: pip install -r deploy-requirements.txt
+    Install necessary packages first with: pip install -r deploy-requirements.txt
 
     USAGE:
-    fab --prompt-for-login-password -H dockeruser@10.1.32.31 run-training --run_name=[NAME]
+    fab --prompt-for-login-password -H dockeruser@10.1.32.31 run-training --run_name=[RUN_NAME]
 
+    Put command line arguments for run_training.py in a yml file in config/run/[RUN_NAME].yml
+
+    Outputs a folder in the from_remote/training_output with the format [RUN_NAME]_(Time of Run)
+    that contains the output from the training.
     """
-    run_dir_name = build_run_dir_name(run_name)
+    run_dir_name = get_run_dir_name(run_name)
     docker_run_output_dir = docker_training_output_dir / run_dir_name
     run_config = load_run_config(run_name, docker_run_output_dir)
 
-    make_app_target_dir(c)
-    zip_app_locally()
-    copy_app_to_remote(c)
-    unzip_app_on_remote(c)
-    create_run_output_dir(c, run_output_dirname=run_dir_name)
-    build_docker_image(c)
-
+    build_docker_image_on_remote(c, run_dir_name)
     run_docker_image_for_training(c, run_config=run_config, output_dir=docker_run_output_dir)
-
     retrieve_training_output(c, run_dir_name=run_dir_name)
 
 
-def build_run_dir_name(run_name):
+def get_run_dir_name(run_name):
     datetime_tag = datetime.now().strftime('%Y%m%d-%H%M%S')
     return f'{run_name}_{datetime_tag}'
 
@@ -67,6 +64,15 @@ def load_run_config(run_name, run_output_dir):
         config = yaml.safe_load(f)
     config['training_model'] = PurePosixPath(run_output_dir, config['training_model'])
     return config
+
+
+def build_docker_image_on_remote(c, run_dir_name):
+    make_app_target_dir(c)
+    zip_app_locally()
+    copy_app_to_remote(c)
+    unzip_app_on_remote(c)
+    create_run_output_dir(c, run_output_dirname=run_dir_name)
+    run_docker_build_command(c)
 
 
 def make_app_target_dir(c):
@@ -107,29 +113,16 @@ def create_run_output_dir(c, run_output_dirname):
     c.run(f'mkdir -p {training_output_dir / run_output_dirname}')
 
 
-def build_docker_image(c):
+def run_docker_build_command(c):
     c.run(f'cd {app_target_dir} && ' + docker_build_cmd)
 
 
 def run_docker_image_for_training(c, run_config, output_dir):
-    # options = [f'--{flag}={value}' for flag, value in run_config.items()]
-    program_cmd = (
-        "python run_training.py "
-        "--training_model={training_model} "
-        "--data_file={data_file} "
-        "--data_split={data_split} "
-        "--training_split={training_split} "
-        "--validation_split={validation_split} "
-        "--n_epochs={n_epochs} "
-        "--image_masks={image_masks} "
-        "--problem_type={problem_type} "
-    ).format(**run_config)
-
-    c.run(docker_run_cmd(program_cmd))
+    options = ' '.join([f'--{flag}={value}' for flag, value in run_config.items()])
+    c.run(docker_run_cmd(f'python run_training.py {options}'))
 
 
 def docker_run_cmd(args):
-
     return (
         f'docker run -u $(id -u):$(id -g) --runtime=nvidia '
         f'-v {dataset_dir}:{docker_dataset_dir} '
