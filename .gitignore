@@ -1,9 +1,10 @@
-# Datasets
+# Potentially sensitive data
 /datasets
 /ImageData_*
 /output
 /predictions
 *.h5
+/dicom_anonymizer/tests/data
 
 /.idea
 
