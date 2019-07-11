@@ -2,6 +2,8 @@ import os
 import tarfile
 
 from datetime import datetime
+
+import yaml
 from fabric import task
 from gitignore_parser import parse_gitignore
 from pathlib import PurePosixPath, Path
@@ -40,6 +42,8 @@ def run_training(c, run_name):
 
     """
     run_dir_name = build_run_dir_name(run_name)
+    docker_run_output_dir = docker_training_output_dir / run_dir_name
+    run_config = load_run_config(run_name, docker_run_output_dir)
 
     make_app_target_dir(c)
     zip_app_locally()
@@ -48,11 +52,21 @@ def run_training(c, run_name):
     create_run_output_dir(c, run_output_dirname=run_dir_name)
     build_docker_image(c)
 
-    docker_run_output_dir = docker_training_output_dir / run_dir_name
-
-    run_docker_image_for_training(c, output_dir=docker_run_output_dir)
+    run_docker_image_for_training(c, run_config=run_config, output_dir=docker_run_output_dir)
 
     retrieve_training_output(c, run_dir_name=run_dir_name)
+
+
+def build_run_dir_name(run_name):
+    datetime_tag = datetime.now().strftime('%Y%m%d-%H%M%S')
+    return f'{run_name}_{datetime_tag}'
+
+
+def load_run_config(run_name, run_output_dir):
+    with open(Path('config', 'run', f'{run_name}.yml'), 'r') as f:
+        config = yaml.safe_load(f)
+    config['training_model'] = PurePosixPath(run_output_dir, config['training_model'])
+    return config
 
 
 def make_app_target_dir(c):
@@ -97,13 +111,8 @@ def build_docker_image(c):
     c.run(f'cd {app_target_dir} && ' + docker_build_cmd)
 
 
-def build_run_dir_name(run_name):
-    datetime_tag = datetime.now().strftime('%Y%m%d-%H%M%S')
-    return f'{run_name}_{datetime_tag}'
-
-
-def run_docker_image_for_training(c, output_dir):
-    program_options = build_program_options(output_dir)
+def run_docker_image_for_training(c, run_config, output_dir):
+    # options = [f'--{flag}={value}' for flag, value in run_config.items()]
     program_cmd = (
         "python run_training.py "
         "--training_model={training_model} "
@@ -114,22 +123,9 @@ def run_docker_image_for_training(c, output_dir):
         "--n_epochs={n_epochs} "
         "--image_masks={image_masks} "
         "--problem_type={problem_type} "
-    ).format(**program_options)
+    ).format(**run_config)
 
     c.run(docker_run_cmd(program_cmd))
-
-
-def build_program_options(output_dir):
-    return dict(
-        training_model=output_dir / 'test.h5',
-        data_file='datasets/CT_190PTS.h5',
-        data_split=0.8,
-        training_split='datasets/training_0.8.pkl',
-        validation_split='datasets/validation_0.2.pkl',
-        n_epochs='5',
-        image_masks='Muscle',
-        problem_type='Segmentation',
-    )
 
 
 def docker_run_cmd(args):
