@@ -62,7 +62,7 @@ def get_run_dir_name(run_name):
 def load_run_config(run_name, run_output_dir):
     with open(Path('config', 'run', f'{run_name}.yml'), 'r') as f:
         config = yaml.safe_load(f)
-    config['training_model'] = PurePosixPath(run_output_dir, config['training_model'])
+    config['output_dir'] = run_output_dir
     return config
 
 
@@ -119,7 +119,10 @@ def run_docker_build_command(c):
 
 def run_docker_image_for_training(c, run_config, output_dir):
     options = ' '.join([f'--{flag}={value}' for flag, value in run_config.items()])
-    c.run(docker_run_cmd(f'python run_training.py {options}'))
+    run_training_cmd = docker_run_cmd(f'python run_training.py {options}')
+
+    print(run_training_cmd)
+    c.run(run_training_cmd)
 
 
 def docker_run_cmd(args):

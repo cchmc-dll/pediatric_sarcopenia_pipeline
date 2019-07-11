@@ -1,4 +1,3 @@
-import sys
 from argparse import ArgumentParser
 import tables
 from pyimagesearch.nn.conv.MLP import MLP, MLP10
@@ -61,22 +60,6 @@ from tensorflow.python.keras.callbacks import TensorBoard
 # config['n_epochs'] = 10
 # config['patch_shape'] = None
 # config['skip_blank'] = False
-
-
-"""
-USAGE:
-
-python run_training.py \
-     --training_model='./arg_model.h5' \
-     --data_file='./datasets/CT_190PTS.h5' \
-     --data_split=0.8 \
-     --training_split='datasets/training_0.8.pkl' \
-     --validation_split='datasets/validation_0.2.pkl' \
-     --n_epochs=8 \
-     --image_masks=Muscle \
-     --problem_type=Segmentation \
-"""
-
 
 def create_validation_split(problem_type,data, training_file, validation_file,data_split=0.9,testing_file=None, valid_test_split=0,overwrite=0):
     """
@@ -160,7 +143,7 @@ def parse_command_line_arguments():
     parser = ArgumentParser()
 
     req_group = parser.add_argument_group(title='Required flags')
-    req_group.add_argument('--training_model', required=True, help='Location where trained model will be saved')
+    req_group.add_argument('--training_model_name', required=True, help='Filename of trained model to be saved')
     req_group.add_argument('--data_file', required=True, help='Source of images to train with')
     req_group.add_argument('--training_split', required=True, help='.pkl file with the training data split')
     req_group.add_argument('--validation_split', required=True, help='.pkl file with the validation data split')
@@ -168,7 +151,7 @@ def parse_command_line_arguments():
     req_group.add_argument('--n_epochs', required=True, type=int)
     req_group.add_argument('--image_masks', required=True, help='Comma separated list of mask names, ex: Muscle,Bone,Liver')
     req_group.add_argument('--problem_type', required=True, help='Segmentation, Classification, or Regression, default=Segmentation')
-    # req_group.add_argument('-o,', '--output_dir', required=True, help='Path to directory where output files will be saved')
+    req_group.add_argument('-o,', '--output_dir', required=True, help='Path to directory where output files will be saved')
 
     parser.add_argument('--GPU', default=1, type=int, help='Number of GPUs to use, default=1')
     parser.add_argument('--CPU', default=4, type=int, help='Number of CPU cores to use, default=4')
@@ -193,7 +176,10 @@ def build_config_dict(cmdline_args):
     config["training_modalities"] = config["all_modalities"]  # change this if you want to only use some of the modalities
     config["n_channels"] = len(config["training_modalities"])
     config["input_shape"] = tuple([config["n_channels"]] + list(config["image_shape"]))
+
+    # calculated values from cmdline_args
     config['image_masks'] = config['image_masks'].split(',')
+    config['training_model'] = os.path.join(config['output_dir'], config['training_model_name'])
 
     return config
 
@@ -390,7 +376,7 @@ def main(overwrite=False):
                         use_multiprocessing=False, workers=Ncpus)
  
 # Step 7: Print Output
-  # plot the training + testing loss and accuracy
+    # plot the training + testing loss and accuracy
     Fepochs = len(H.history['loss'])
     plt.style.use("ggplot")
     plt.figure()
@@ -400,7 +386,7 @@ def main(overwrite=False):
     plt.xlabel("Epoch #")
     plt.ylabel("Loss")
     plt.legend()
-    figpath_final = 'datasets/' + config["input_type"]+'_loss.png'
+    figpath_final = os.path.join(config['output_dir'], config['input_type'] + "_loss.png")
     plt.savefig(figpath_final)
     if config['show_plots']:
         plt.show()
@@ -412,7 +398,7 @@ def main(overwrite=False):
     plt.xlabel("Epoch #")
     plt.ylabel("Accuracy")
     plt.legend()
-    figpath_final = 'datasets/' + config["input_type"]+'_acc.png'
+    figpath_final = os.path.join(config['output_dir'], config["input_type"] + '_acc.png')
     plt.savefig(figpath_final)
     if config['show_plots']:
         plt.show()
