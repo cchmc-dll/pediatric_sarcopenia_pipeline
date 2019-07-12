@@ -22,49 +22,8 @@ from unet3d.metrics import dice_coefficient_monitor, weighted_dice_coefficient_l
 from time import time
 from tensorflow.python.keras.callbacks import TensorBoard
 
-
-# Define Problem Configuration:
-##
-# config["input_type"] = "Image"
-# config["image_shape"] = (256,256)
-# config["input_images"] = "ImageData"
-#
-# config["overwrite"] = 1
-# config["problem_type"] = "Segmentation"
-# config["image_masks"] = ["Muscle"] #["Mask"] #["Label"]   # For Image Masks, will serve as label for segmentation problems
-# #config["n_channels"] = 1            # All image channels that will be used as input, image_mask can be input for classification problems and output for segmentation problems.
-#
-# config["normalize"] = False
-#
-# config["labels"] = (1,)  # the label numbers on the input image
-# config["n_labels"] = len(config["labels"])
-#
-# config["all_modalities"] =  ["CT"] #["Input"]
-# config["training_modalities"] = config["all_modalities"]  # change this if you want to only use some of the modalities
-# config["n_channels"] = len(config["training_modalities"])
-# config["input_shape"] = tuple([config["n_channels"]] + list(config["image_shape"]))
-
-##
-# config["data_file"] = "CT_190PTS.h5"
-# config["model_images"] = "Unet2DBN_muscle_wdscloss_2.h5"
-# config["training_model"] = config["model_images"]
-#
-# config["monitor"] = 'output'
-# config["data_split"] = 0.80
-# config["training_split"] = "training_" + str(round(config["data_split"],2)) + '.pkl'
-# config["validation_split"] = "validation_" + str(round(1-config["data_split"],2)) + '.pkl'
-#
-# config['GPU'] = 2
-# config['CPU'] = 12
-# config['batch_size'] = 4
-# config['n_epochs'] = 10
-# config['patch_shape'] = None
-# config['skip_blank'] = False
-
 """
-python run_training.py --training_model_name=arg_model.h5 --data_file='
-./datasets/CT_190PTS.h5' --data_split=0.8 --training_split='datasets/training_0.8.pkl' --validation_split='datasets/validation_0.2.pkl' --n_epochs=
-1 --image_masks=Muscle --problem_type=Segmentation -o "." --labels=1 --all_modalities=CT --training_modalities=CT
+python run_training.py "@example.args"
 """
 
 
@@ -147,7 +106,7 @@ def step_decay(epoch):
 
 
 def parse_command_line_arguments():
-    parser = ArgumentParser()
+    parser = ArgumentParser(fromfile_prefix_chars='@')
 
     req_group = parser.add_argument_group(title='Required flags')
     req_group.add_argument('--training_model_name', required=True, help='Filename of trained model to be saved')

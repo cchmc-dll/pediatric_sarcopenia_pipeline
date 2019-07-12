@@ -6,7 +6,9 @@
 *.h5
 /dicom_anonymizer/tests/data
 
+# IDE stuff
 /.idea
+/.vs
 
 
 # Ignore all logfiles and tempfiles.
