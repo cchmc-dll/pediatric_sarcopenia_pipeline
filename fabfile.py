@@ -33,7 +33,7 @@ local_training_output_dir = local_root / 'from_remote' / 'training_output'
 
 
 @task
-def run_training(c, run_name):
+def run_training(connection, run_name):
     """
     Install necessary packages first with: pip install -r deploy-requirements.txt
 
@@ -47,11 +47,14 @@ def run_training(c, run_name):
     """
     run_dir_name = get_run_dir_name(run_name)
     docker_run_output_dir = docker_training_output_dir / run_dir_name
-    run_config = load_run_config(run_name, docker_run_output_dir)
 
-    build_docker_image_on_remote(c, run_dir_name)
-    run_docker_image_for_training(c, run_config=run_config, output_dir=docker_run_output_dir)
-    retrieve_training_output(c, run_dir_name=run_dir_name)
+    build_docker_image_on_remote(connection, run_dir_name)
+    run_docker_image_for_training(
+        connection,
+        args_file_path=get_args_file_path(run_name),
+        run_output_dir=docker_run_output_dir
+    )
+    retrieve_training_output(connection, run_dir_name=run_dir_name)
 
 
 def get_run_dir_name(run_name):
@@ -117,9 +120,13 @@ def run_docker_build_command(c):
     c.run(f'cd {app_target_dir} && ' + docker_build_cmd)
 
 
-def run_docker_image_for_training(c, run_config, output_dir):
-    options = ' '.join([f'--{flag}={value}' for flag, value in run_config.items()])
-    run_training_cmd = docker_run_cmd(f'python run_training.py {options}')
+def get_args_file_path(run_name):
+    return PurePosixPath('config', 'run', f'{run_name}.args')
+
+
+def run_docker_image_for_training(c, args_file_path, run_output_dir):
+    python_cmd = f'python run_training.py @{args_file_path} --output_dir={run_output_dir}'
+    run_training_cmd = docker_run_cmd(python_cmd)
 
     print(run_training_cmd)
     c.run(run_training_cmd)
