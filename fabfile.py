@@ -134,7 +134,7 @@ def run_docker_image_for_training(c, args_file_path, run_output_dir):
 
 def docker_run_cmd(args):
     return (
-        f'docker run -u $(id -u):$(id -g) --runtime=nvidia '
+        f'docker run -u $(id -u):$(id -g) --runtime=nvidia --rm '
         f'-v {dataset_dir}:{docker_dataset_dir} '
         f'-v {output_dir}:{docker_output_dir} '
         f'-v {predictions_dir}:{docker_predictions_dir} '
