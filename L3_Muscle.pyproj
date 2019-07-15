@@ -5,13 +5,16 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{61ae833c-8a75-4a42-87cb-4cfadc1b6408}</ProjectGuid>
     <ProjectHome />
-    <StartupFile>run_prediction_memb.py</StartupFile>
+    <StartupFile>run_training.py</StartupFile>
     <SearchPath />
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
     <ProjectTypeGuids>{888888a0-9f3d-457c-b088-3a5042f75d52}</ProjectTypeGuids>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <InterpreterId>Global|VisualStudio|TensorFlow</InterpreterId>
+    <InterpreterId>CondaEnv|CondaEnv|py36</InterpreterId>
+    <CommandLineArguments>"@example.args"</CommandLineArguments>
+    <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
+    <IsWindowsApplication>False</IsWindowsApplication>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'" />
   <PropertyGroup Condition="'$(Configuration)' == 'Release'" />
@@ -23749,6 +23752,7 @@
     <Content Include="Validation_L3_manual\9\PP_V3.tif" />
   </ItemGroup>
   <ItemGroup>
+    <InterpreterReference Include="CondaEnv|CondaEnv|py36" />
     <InterpreterReference Include="Global|VisualStudio|TensorFlow" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />

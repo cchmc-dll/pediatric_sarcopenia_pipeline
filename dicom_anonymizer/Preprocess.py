@@ -1,7 +1,10 @@
 """
 Preprocess image for DICOM to Anonymized DICOM, NIFTI and TIFF
 """
+import csv
+import glob
 from argparse import ArgumentParser
+from collections import namedtuple
 from os import listdir
 from os.path import isfile, join, isdir
 from optparse import OptionParser
@@ -28,10 +31,44 @@ csvfile =   r'C:\Users\somd7w\Desktop\Airway_Project\original_imagefiles\Additio
 #outDir    = r'C:\Users\somd7w\Desktop\Airway_Project\bad_anon'
 #niftiDir  = r'C:\Users\somd7w\Desktop\Airway_Project\bad_nii '
 #dcm2nifti = r'C:\Users\somd7w\Downloads\win\mricron\dcm2nii.exe'
-dcm2niix_exe = Path(os.getcwd(), 'dicom_anonymizer', 'ext', 'dcm2niix.exe')
+dcm2niix_exe = Path(os.getcwd(), 'ext', 'dcm2niix.exe')
+
+dataset_path = Path("\\\\vnas1\\root1\\Radiology\\SHARED\\Elan\\Projects\\Skeletal Muscle Project\\Dataset2")
+sagittal_csv_path = Path("\\\\vnas1\\root1\\Radiology\\SHARED\\Elan\\Projects\\Skeletal Muscle Project\\sagittal_series_remaining.csv")
+
+CTImage = namedtuple('DcmImage', ['subject_id', 'series', 'src_dirs'])
+
+nifti_out_dir = Path.cwd().joinpath('tests', 'data', 'nifti_out')
 
 
-# print(isdir(inDir))
+def get_image_info_from(csv_path=sagittal_csv_path):
+    with open(sagittal_csv_path) as csv_file:
+        csv_reader = csv.DictReader(csv_file)
+        yield from csv_reader
+
+
+def dicom_src_dir_for(subject_id, series, path=dataset_path):
+    return CTImage(
+        subject_id,
+        series,
+        src_dirs=path.glob(f"*{subject_id}/**/SE-{series}-*/")
+    )
+
+
+def nifti_from_dcm_dir(dcm_dir, filename, output_dir):
+    cmd = [str(dcm2niix_exe), '-s', 'y', '-f', filename, '-o', str(nifti_out_dir), str(src_dir)]
+    print(cmd)
+    subprocess.check_call(cmd)
+    return Path(nifti_out_dir, f'{filename}.nii')
+
+
+
+# ct_image_generator = (dicom_src_dir_for(row['subject_id'], row['series']) for row in get_image_info_from())
+# for ct_image in ct_image_generator:
+#     for src_dir in ct_image.src_dirs:
+#         cmd = [str(dcm2niix_exe), '-s', 'y', '-f', ct_image.subject_id, '-o', str(nifti_out_dir), str(src_dir)]
+#         print(cmd)
+#         subprocess.check_call(cmd)
 
 
 def main():
@@ -68,6 +105,7 @@ def convert_and_anonymize_dicom(config):
             del analysis_vars[1:3]
             rows.append(analysis_vars)
 
+            write_anonymized_dicom(output_dir=config.output_dir, dicom_path=f, dataset=ds)
             save_as_nifti(output_dir=config.output_dir, subject_ids=subject_ids, pt_index=index)
 
             # Writing Anonymized Dicom
@@ -106,6 +144,11 @@ def convert_and_anonymize_dicom(config):
         # df = pd.DataFrame.from_records(rows, columns=header, index=subject_ids)
         # print(df.head())
         # df.to_csv(csvfile)
+
+
+def write_anonymized_dicom(output_dir, dicom_path, dataset):
+    outfile = join(output_dir, dicom_path)
+    dicom.write_file(outfile, dataset)
 
 
 def save_as_nifti(output_dir, subject_ids, pt_index):

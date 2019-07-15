@@ -40,7 +40,7 @@ def run_training(connection, run_name):
     USAGE:
     fab --prompt-for-login-password -H dockeruser@10.1.32.31 run-training --run_name=[RUN_NAME]
 
-    Put command line arguments for run_training.py in a yml file in config/run/[RUN_NAME].yml
+    Put command line arguments for run_training.py in a .args file in config/run/[RUN_NAME].args
 
     Outputs a folder in the from_remote/training_output with the format [RUN_NAME]_(Time of Run)
     that contains the output from the training.

@@ -1,15 +1,26 @@
-# Potentially sensitive data
+# Potentially sensitive data +
+# Image file extensions so no patient data is accidentally uploaded
 /datasets
 /ImageData_*
 /output
 /predictions
 *.h5
 /dicom_anonymizer/tests/data
+*.dcm
+*.png
+*.tif
+*.nii
+*.nifti
+*.TIF
+*.PNG
+*.DCM
+*.NII
+*.NIFTI
+*.H5
 
 # IDE stuff
 /.idea
 /.vs
-
 
 # Ignore all logfiles and tempfiles.
 /log/*
