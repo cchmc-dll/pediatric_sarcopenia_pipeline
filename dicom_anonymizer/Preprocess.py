@@ -1,23 +1,15 @@
 """
 Preprocess image for DICOM to Anonymized DICOM, NIFTI and TIFF
 """
-import csv
-import glob
 from argparse import ArgumentParser
-from collections import namedtuple
 from os import listdir
 from os.path import isfile, join, isdir
-from optparse import OptionParser
-from pathlib import Path
 
 import pydicom as dicom
-from pydicom.tag import Tag
-import pandas as pd
-import numpy as np
-import nibabel as nib
+
+from L3_finder.images import dcm2niix_exe
 from dicom_anonymizer.anonymize_dicom_Airway import anonymize_dicom
-import subprocess              
-import cv2
+import subprocess
 import os
 
 #from dicom-anon import dicom_anon
@@ -31,36 +23,6 @@ csvfile =   r'C:\Users\somd7w\Desktop\Airway_Project\original_imagefiles\Additio
 #outDir    = r'C:\Users\somd7w\Desktop\Airway_Project\bad_anon'
 #niftiDir  = r'C:\Users\somd7w\Desktop\Airway_Project\bad_nii '
 #dcm2nifti = r'C:\Users\somd7w\Downloads\win\mricron\dcm2nii.exe'
-dcm2niix_exe = Path(os.getcwd(), 'ext', 'dcm2niix.exe')
-
-dataset_path = Path("\\\\vnas1\\root1\\Radiology\\SHARED\\Elan\\Projects\\Skeletal Muscle Project\\Dataset2")
-sagittal_csv_path = Path("\\\\vnas1\\root1\\Radiology\\SHARED\\Elan\\Projects\\Skeletal Muscle Project\\sagittal_series_remaining.csv")
-
-CTImage = namedtuple('DcmImage', ['subject_id', 'series', 'src_dirs'])
-
-nifti_out_dir = Path.cwd().joinpath('tests', 'data', 'nifti_out')
-
-
-def get_image_info_from(csv_path=sagittal_csv_path):
-    with open(sagittal_csv_path) as csv_file:
-        csv_reader = csv.DictReader(csv_file)
-        yield from csv_reader
-
-
-def dicom_src_dir_for(subject_id, series, path=dataset_path):
-    return CTImage(
-        subject_id,
-        series,
-        src_dirs=path.glob(f"*{subject_id}/**/SE-{series}-*/")
-    )
-
-
-def nifti_from_dcm_dir(dcm_dir, filename, output_dir):
-    cmd = [str(dcm2niix_exe), '-s', 'y', '-f', filename, '-o', str(nifti_out_dir), str(src_dir)]
-    print(cmd)
-    subprocess.check_call(cmd)
-    return Path(nifti_out_dir, f'{filename}.nii')
-
 
 
 # ct_image_generator = (dicom_src_dir_for(row['subject_id'], row['series']) for row in get_image_info_from())
