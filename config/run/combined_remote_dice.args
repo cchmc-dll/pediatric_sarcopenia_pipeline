@@ -1,8 +1,8 @@
---training_model_name=retry_dice_deep_0.9.h5
+--training_model_name=combined_new_thresholding_fold_3.h5
 --data_file=./datasets/combined_new_thresholding.h5
 --data_split=0.9
---training_split=./datasets/combined_new_thresholding_0.9.pkl
---validation_split=./datasets/combined_new_thresholding_0.1.pkl
+--training_split=datasets/combined_new_thresholding_kfold/fold_3_train.pkl
+--validation_split=datasets/combined_new_thresholding_kfold/fold_3_val.pkl
 --n_epochs=100
 --image_masks=Muscle
 --problem_type=Segmentation

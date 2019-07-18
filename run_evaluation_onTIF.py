@@ -11,10 +11,10 @@ import matplotlib.pyplot as plt
 
 
 config = dict()
-config['input_dir'] = 'predictions/retry'
+config['input_dir'] = 'predictions/combined_new_thresholding_fold_2'
 config['truth_img'] = 'truth'
 config['prediction_img'] = 'prediction'
-config['output_file'] = 'retry.csv'
+config['output_file'] = 'fold_2.csv'
 
 
 
@@ -62,7 +62,7 @@ def main():
 
     plt.boxplot(list(scores.values()), labels=list(scores.keys()))
     plt.ylabel("Dice Coefficient")
-    plt.savefig("validation_scores_boxplot_test2.png")
+    plt.savefig(os.path.join(config['input_dir'], "validation_scores_boxplot_test2.png"))
     plt.close()
 
     if os.path.exists("./training.log"):

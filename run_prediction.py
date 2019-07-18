@@ -42,10 +42,10 @@ config = dict()
 
 # General Parameters
 
-config["data_file"] = "retry_1.h5"
-config["model_images"] = "from_remote/training_output/combined_remote_20190717-144507/retry_cross.h5"
-config['prediction_folder'] = 'retry_cross'
-config["testing_split"] = 'retry_1_0.2' +'.pkl'
+config["data_file"] = "combined_new_thresholding.h5"
+config["model_images"] = "from_remote/training_output/combined_remote_dice_20190718-130915/combined_new_thresholding_fold_1.h5"
+config['prediction_folder'] = 'combined_new_thresholding_fold_2'
+config["testing_split"] = 'combined_new_thresholding_kfold/fold_2_test.pkl'
 
 
 
