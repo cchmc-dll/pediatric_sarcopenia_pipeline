@@ -101,7 +101,7 @@ def normalize_data_storage_2D(data_storage):
         data = data_storage[index]
         if index == 0:
             cv2.imshow('Un-normalized',data[0])
-            cv2.waitKey(100)
+            cv2.waitKey(1000)
 
         means.append(data.mean(axis=(1, 2)))
         stds.append(data.std(axis=(1, 2)))
@@ -113,7 +113,7 @@ def normalize_data_storage_2D(data_storage):
         if index == 0:
             img = data_storage[index]
             cv2.imshow('Normalized',img[0])
-            cv2.waitKey(100)
+            cv2.waitKey(1000)
     
     cv2.destroyAllWindows()
     return data_storage
@@ -152,12 +152,12 @@ def resize_pad(im,desired_size,label=False): # Preserves aspect ratio and resize
     return new_im
 
 
-def reslice_image_set_TIF(in_files, image_shape, out_files=None, label_indices=None,slice_number=0):
+def reslice_image_set_TIF(in_files, image_shape, out_files=None, label_indices=None,slice_number=0, use_middle_slice=False):
     images = list()
-    for f,file in enumerate(in_files):
+    for f, file in enumerate(in_files):
         tiff = io.imread(file, plugin='pil')
-        if (len(tiff.shape) > 2):
-            image = tiff[slice_number]
+        if len(tiff.shape) > 2:
+            image = tiff[len(tiff) // 2] if use_middle_slice else tiff[slice_number]
         else:
             tiff = io.imread(file)
             image = tiff

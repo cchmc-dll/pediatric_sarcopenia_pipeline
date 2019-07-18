@@ -1,0 +1,10 @@
+--training_model_name=retry_dice_0.1.h5
+--output_dir=./local_output/retry_dice_0.9
+--data_file=./datasets/retry_1.h5
+--data_split=0.9
+--training_split=./datasets/retry_1_0.9.pkl
+--validation_split=./datasets/retry_1_0.1.pkl
+--n_epochs=100
+--image_masks=Muscle
+--problem_type=Segmentation
+--GPU=1

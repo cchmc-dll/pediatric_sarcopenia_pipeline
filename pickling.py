@@ -31,14 +31,14 @@ config["n_channels"] = len(config["training_modalities"])
 config["input_shape"] = tuple([config["n_channels"]] + list(config["image_shape"]))
 
 ##
-config["data_file"] = "CT_190PTS.h5"
+config["data_file"] = "ct_combined_normalized.h5"
 config["model_images"] = "CT2_Unet2DBN_muscle_wdscloss.h5"
 config["training_model"] = config["model_images"]
 
 config["monitor"] = 'output'
 config["data_split"] = 0.8
-config["training_split"] = "training_" + str(round(config["data_split"],2)) + '.pkl'
-config["validation_split"] = "validation_" + str(round(1-config["data_split"],2)) + '.pkl'
+config["training_split"] = "combined_training" + str(round(config["data_split"],2)) + '.pkl'
+config["validation_split"] = "combined_validation" + str(round(1-config["data_split"],2)) + '.pkl'
 
 # config['GPU'] = 1
 # config['CPU'] = 12

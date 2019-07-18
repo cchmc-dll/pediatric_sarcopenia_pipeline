@@ -159,3 +159,91 @@ class Unet2D_BN:
         outputs = Conv2D(1, (1, 1), activation='sigmoid') (c9)
         model = Model(inputs=[input_img], outputs=[outputs])
         return model
+
+#Unet with BatchNorm based on: https://www.depends-on-the-definition.com/unet-keras-segmenting-images/
+class Unet2D_BN_Deeper:
+    @staticmethod
+    def conv2d_block(input_tensor, n_filters, kernel_size=3, batchnorm=True):
+        # first layer
+        x = Conv2D(filters=n_filters, kernel_size=(kernel_size, kernel_size), kernel_initializer="he_normal",
+                   padding="same")(input_tensor)
+        if batchnorm:
+            x = BatchNormalization()(x)
+        x = Activation("relu")(x)
+        # second layer
+        x = Conv2D(filters=n_filters, kernel_size=(kernel_size, kernel_size), kernel_initializer="he_normal",
+                   padding="same")(x)
+        if batchnorm:
+            x = BatchNormalization()(x)
+        x = Activation("relu")(x)
+        return x
+
+    @staticmethod
+    def build(inputShape, classes):
+        # initialize the model along with the input shape to be
+        # "channels last" and the channels dimension itself
+        # inputShape = (height, width, depth)
+        # if we are using "channels first", update the input shape
+        # and channels dimension
+
+        chanDim = -1
+        if K.image_data_format() == "channels_first":
+            #inputShape = (depth, height, width)
+            chanDim = 1
+
+        input_img = Input(inputShape)
+        n_filters=16
+        dropout=0.6
+        batchnorm=True
+        # contracting path
+        c1 = Unet2D_BN.conv2d_block(input_img, n_filters=n_filters*1, kernel_size=3, batchnorm=batchnorm)
+        p1 = MaxPooling2D((2, 2)) (c1)
+        p1 = Dropout(dropout*0.5)(p1)
+
+        c2 = Unet2D_BN.conv2d_block(p1, n_filters=n_filters*2, kernel_size=3, batchnorm=batchnorm)
+        p2 = MaxPooling2D((2, 2)) (c2)
+        p2 = Dropout(dropout)(p2)
+
+        c3 = Unet2D_BN.conv2d_block(p2, n_filters=n_filters*4, kernel_size=3, batchnorm=batchnorm)
+        p3 = MaxPooling2D((2, 2)) (c3)
+        p3 = Dropout(dropout)(p3)
+
+        c4 = Unet2D_BN.conv2d_block(p3, n_filters=n_filters*8, kernel_size=3, batchnorm=batchnorm)
+        p4 = MaxPooling2D(pool_size=(2, 2)) (c4)
+        p4 = Dropout(dropout)(p4)
+
+        c5 = Unet2D_BN.conv2d_block(p4, n_filters=n_filters*16, kernel_size=3, batchnorm=batchnorm)
+        p5 = MaxPooling2D(pool_size=(2, 2)) (c5)
+        p5 = Dropout(dropout)(p5)
+
+        c6 = Unet2D_BN.conv2d_block(p5, n_filters=n_filters*32, kernel_size=3, batchnorm=batchnorm)
+
+        # expansive path
+        u6 = Conv2DTranspose(n_filters*16, (3, 3), strides=(2, 2), padding='same') (c6)
+        u6 = concatenate([u6, c5],axis = chanDim)
+        u6 = Dropout(dropout)(u6)
+        c7 = Unet2D_BN.conv2d_block(u6, n_filters=n_filters*8, kernel_size=3, batchnorm=batchnorm)
+
+        u7 = Conv2DTranspose(n_filters*8, (3, 3), strides=(2, 2), padding='same') (c7)
+        u7 = concatenate([u7, c4],axis = chanDim)
+        u7 = Dropout(dropout)(u7)
+        c8 = Unet2D_BN.conv2d_block(u7, n_filters=n_filters*4, kernel_size=3, batchnorm=batchnorm)
+
+        u8 = Conv2DTranspose(n_filters*4, (3, 3), strides=(2, 2), padding='same') (c8)
+        u8 = concatenate([u8, c3],axis = chanDim)
+        u8 = Dropout(dropout)(u8)
+        c9 = Unet2D_BN.conv2d_block(u8, n_filters=n_filters*2, kernel_size=3, batchnorm=batchnorm)
+
+        u9 = Conv2DTranspose(n_filters*2, (3, 3), strides=(2, 2), padding='same') (c9)
+        u9 = concatenate([u9, c2],axis = chanDim)
+        u9 = Dropout(dropout)(u9)
+        c10 = Unet2D_BN.conv2d_block(u9, n_filters=n_filters*1, kernel_size=3, batchnorm=batchnorm)
+
+        u10 = Conv2DTranspose(n_filters*1, (3, 3), strides=(2, 2), padding='same') (c10)
+        u10 = concatenate([u10, c1],axis = chanDim)
+        u10 = Dropout(dropout)(u10)
+        c11 = Unet2D_BN.conv2d_block(u10, n_filters=n_filters*1, kernel_size=3, batchnorm=batchnorm)
+
+        outputs = Conv2D(1, (1, 1), activation='sigmoid') (c11)
+        model = Model(inputs=[input_img], outputs=[outputs])
+        return model

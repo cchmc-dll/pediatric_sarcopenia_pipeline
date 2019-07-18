@@ -2,7 +2,7 @@ from argparse import ArgumentParser
 import tables
 from pyimagesearch.nn.conv.MLP import MLP, MLP10
 from pyimagesearch.nn.conv.Resnet3D import Resnet3D
-from pyimagesearch.nn.conv.Unet2D import Unet2D,Unet2D_BN
+from pyimagesearch.nn.conv.Unet2D import Unet2D, Unet2D_BN, Unet2D_BN_Deeper
 from keras.utils import plot_model
 from keras.optimizers import SGD, Adam
 from keras.callbacks import EarlyStopping
@@ -27,7 +27,7 @@ python run_training.py "@example.args"
 """
 
 
-def create_validation_split(problem_type,data, training_file, validation_file,data_split=0.9,testing_file=None, valid_test_split=0,overwrite=0):
+def create_validation_split(problem_type, data, training_file, validation_file,data_split=0.9, testing_file=None, valid_test_split=0,overwrite=0):
     """
     Splits the data into the training and validation indices list.
     :param data_file: pytables hdf5 data file
@@ -300,7 +300,7 @@ def run_training(config):
         plot_model(model1, to_file="Combined.png", show_shapes=True)
     elif input_type is "Image":
         # create the MLP and CNN models
-        model1 = Unet2D_BN.build(config['input_shape'],config["n_labels"])
+        model1 = Unet2D_BN_Deeper.build(config['input_shape'],config["n_labels"])
         # plot_model(model1, to_file="Unet-2D.png", show_shapes=True)
     elif input_type is "Clinical":
         # create the MLP and CNN models
@@ -315,7 +315,7 @@ def run_training(config):
     # OPTIMIZER
     #opt = SGD(lr=1e-4, momentum=0.9) # Continuous Learning Rate Decay
     opt = Adam(lr = 1e-4)
-    loss_func =  weighted_dice_coefficient_loss_2D #"binary_crossentropy" #  dice_coefficient_loss 
+    loss_func =  weighted_dice_coefficient_loss_2D #"binary_crossentropy" #  dice_coefficient_loss
    # class_weight = {0: 1.,1: 50.}
 
     ## Make Model MultiGPU

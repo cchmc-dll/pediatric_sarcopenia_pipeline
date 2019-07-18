@@ -86,7 +86,7 @@ class TIF_loader:
                 if self.problem_type is "Classification":
                     subject_name = imagePath[0].split(os.path.sep)[-2]
                     if subject_name in self.ids:
-                        images = reslice_image_set_TIF(in_files=imagePath, image_shape=self.input_shape, label_indices=len(imagePath)-1)
+                        images = self.get_images(in_files=imagePath, image_shape=self.input_shape, label_indices=len(imagePath)-1)
                         label = imagePath[0].split(os.path.sep)[-3]
                         subject_data = [image for image in images]
                         image_storage.append(np.asarray(subject_data)[np.newaxis])
@@ -96,7 +96,7 @@ class TIF_loader:
                     subject_name = imagePath[0].split(os.path.sep)[-2]
 
                     if subject_name in self.ids:
-                        images = reslice_image_set_TIF(in_files=imagePath, image_shape=self.input_shape, label_indices=len(imagePath)-1,slice_number=self.slice_number)
+                        images = self.get_images(in_files=imagePath, image_shape=self.input_shape, label_indices=len(imagePath)-1,slice_number=self.slice_number)
                         subject_data = [image for image in images]
                         image_storage.append(np.asarray(subject_data[:self.n_channels])[np.newaxis])
                         #DEBUG 
@@ -109,4 +109,13 @@ class TIF_loader:
 			    # show an update every `verbose` images
                 if verbose > 0 and i > 0 and (i + 1) % verbose == 0:
                     print("[INFO] processed {}/{}".format(i + 1,len(self.ids)))
-            return(image_storage)  
+            return(image_storage)
+
+    def get_images(self, **loader_args):
+        return reslice_image_set_TIF(**loader_args)
+
+
+class MiddleTIFLoader(TIF_loader):
+    def get_images(self, **loader_args):
+        return reslice_image_set_TIF(use_middle_slice=True, **loader_args)
+

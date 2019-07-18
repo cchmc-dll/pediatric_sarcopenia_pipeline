@@ -2,7 +2,7 @@ import os
 import glob
 import cmd
 from pyimagesearch.io.nifti_loader import nifti_loader
-from pyimagesearch.io.TIF_loader import TIF_loader
+from pyimagesearch.io.TIF_loader import TIF_loader, MiddleTIFLoader
 import numpy as np
 import pandas as pd
 import tables
@@ -14,12 +14,13 @@ config = dict()
 ##
 config["input_type"] = "Image"
 config["input_shape"] = (256,256)
-config["input_images"] = "datasets/ImageData_CT2_preprocessed"
+config["input_images"] = "datasets/ImageDataCombined"
 config["image_format"] = "TIF" # or "NIFTI"
 config["slice_number"] = 0 # Use this if you have a stacked TIF and want only one slice for 2D problems.
                            # slice number goes from 0 to length of Stack
+config['use_middle_image'] = True
 
-config["output_file"] = "CT2_with_norm_changes.h5"
+config["output_file"] = "retry_1.h5"
 
 config["overwrite"] = 1
 config["problem_type"] = "Segmentation"
@@ -30,12 +31,38 @@ config["n_channels"] = 0            # All image channels that will be used as in
 config["clinical_truthname"] =  None # For CSV File
 config["normalize"] = True
 
+
 def get_image_loader(problem_type,input_images):
     if config["image_format"] is "TIF":
-        image_loader = TIF_loader(problem_type,input_images,config["input_shape"],config["image_modalities"],config["image_masks"],config['slice_number'])
+        if config['use_middle_image']:
+            return MiddleTIFLoader(
+                problem_type,
+                input_images,
+                config["input_shape"],
+                config["image_modalities"],
+                config["image_masks"],
+                config['slice_number']
+            )
+        else:
+            return TIF_loader(
+                problem_type,
+                input_images,
+                config["input_shape"],
+                config["image_modalities"],
+                config["image_masks"],
+                config['slice_number']
+            )
     elif config["image_format"] is "NIFTI":
-        image_loader = nifti_loader(problem_type,input_images,config["input_shape"],config["image_modalities"],config["image_masks"])
-    return image_loader
+        return nifti_loader(
+            problem_type,
+            input_images,
+            config["input_shape"],
+            config["image_modalities"],
+            config["image_masks"]
+        )
+    else:
+        raise RuntimeError(f'Unsupported image format: {config["image_format"]}')
+
 
 def main(overwrite=False):
     # Step 1: Check if Input Folders are defined

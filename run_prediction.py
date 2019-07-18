@@ -42,10 +42,10 @@ config = dict()
 
 # General Parameters
 
-config["data_file"] = "CT2_with_norm_changes.h5"
-config["model_images"] = "Unet2DBN_muscle_wdscloss.h5"
-config['prediction_folder'] = 'CT2_norm'
-config["testing_split"] = 'validation_norm_1.0' +'.pkl'
+config["data_file"] = "retry_1.h5"
+config["model_images"] = "from_remote/training_output/combined_remote_20190717-144507/retry_cross.h5"
+config['prediction_folder'] = 'retry_cross'
+config["testing_split"] = 'retry_1_0.2' +'.pkl'
 
 
 
