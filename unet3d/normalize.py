@@ -119,7 +119,6 @@ def normalize_data_storage_2D(data_storage):
     return data_storage
 
 
-
 def normalize_clinical_storage(data_storage):
     mean = np.mean(data_storage,axis=0)
     std = np.std(data_storage,axis=0)
@@ -168,6 +167,9 @@ def reslice_image_set_TIF(in_files, image_shape, out_files=None, label_indices=N
             label = True
             # Only for Muscle Segmentation
             image[image > 0] = 1
+        else:
+            image[image < 1800] = 1800
+            image[image > 2300] = 2300
 
         # Resize
         if (image_shape[0] != image.shape[0]) or (image_shape[0] != image.shape[1]):

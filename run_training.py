@@ -2,7 +2,7 @@ from argparse import ArgumentParser
 import tables
 from pyimagesearch.nn.conv.MLP import MLP, MLP10
 from pyimagesearch.nn.conv.Resnet3D import Resnet3D
-from pyimagesearch.nn.conv.Unet2D import Unet2D, Unet2D_BN, Unet2D_BN_Deeper
+from pyimagesearch.nn.conv.Unet2D import Unet2D, Unet2D_BN, Unet2D_BN_MOD
 from keras.utils import plot_model
 from keras.optimizers import SGD, Adam
 from keras.callbacks import EarlyStopping
@@ -300,7 +300,7 @@ def run_training(config):
         plot_model(model1, to_file="Combined.png", show_shapes=True)
     elif input_type is "Image":
         # create the MLP and CNN models
-        model1 = Unet2D_BN_Deeper.build(config['input_shape'],config["n_labels"])
+        model1 = Unet2D_BN_MOD.build(config['input_shape'],config["n_labels"])
         # plot_model(model1, to_file="Unet-2D.png", show_shapes=True)
     elif input_type is "Clinical":
         # create the MLP and CNN models
