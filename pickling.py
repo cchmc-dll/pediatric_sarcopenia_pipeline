@@ -37,8 +37,8 @@ config["training_model"] = config["model_images"]
 
 config["monitor"] = 'output'
 config["data_split"] = 0.8
-config["training_split"] = "combined_training" + str(round(config["data_split"],2)) + '.pkl'
-config["validation_split"] = "combined_validation" + str(round(1-config["data_split"],2)) + '.pkl'
+config["training_split"] = "test_pickle" + str(round(config["data_split"],2)) + '.pkl'
+config["validation_split"] = "test_pickle" + str(round(1-config["data_split"],2)) + '.pkl'
 
 # config['GPU'] = 1
 # config['CPU'] = 12
