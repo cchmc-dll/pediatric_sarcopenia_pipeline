@@ -7,3 +7,4 @@
 --image_masks=Muscle
 --problem_type=Segmentation
 --GPU=1
+--batch_size=16
