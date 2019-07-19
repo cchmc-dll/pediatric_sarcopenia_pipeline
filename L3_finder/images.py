@@ -10,19 +10,6 @@ import pydicom
 from L3_finder.preprocess import create_mip_from_path
 
 dcm2niix_exe = Path(os.getcwd(), 'ext', 'dcm2niix.exe')
-# dataset_path = Path("\\\\vnas1\\root1\\Radiology\\SHARED\\Elan\\Projects\\Skeletal Muscle Project\\Dataset2")
-# sagittal_csv_path = Path("\\\\vnas1\\root1\\Radiology\\SHARED\\Elan\\Projects\\Skeletal Muscle Project\\sagittal_series_remaining.csv")
-# nifti_out_dir = Path.cwd().joinpath('tests', 'data', 'nifti_out')
-# CTImage = namedtuple(
-#     'DcmImage',
-#     [
-#         'subject_id',
-#         'axial_series',
-#         'axial_l3',
-#         'sagittal_series',
-#         'sagittal_midsag'
-#     ]
-# )
 
 
 class StudyImage:
@@ -50,7 +37,7 @@ class StudyImage:
 
 
 def find_images_and_metadata(manifest_csv, dataset_path, intermediate_nifti_dir):
-    study_images = list(find_study_images(dataset_path, manifest_csv))
+    study_images = list(_find_study_images(dataset_path, manifest_csv))
     sagittal_spacings = find_sagittal_image_spacings(study_images, dataset_path)
     names = np.fromiter((image.name for image in study_images), dtype='S5')
     ydata = dict(A=find_axial_l3_offsets(study_images))  # One person picked the L3s for this image -> person A
@@ -68,13 +55,13 @@ def find_images_and_metadata(manifest_csv, dataset_path, intermediate_nifti_dir)
     )
 
 
-def find_study_images(dataset_path, manifest_csv):
+def _find_study_images(dataset_path, manifest_csv):
     """Potential because folders may not exist..."""
-    potential_images = (build_study_image(dataset_path, row) for row in get_image_info_from(manifest_csv))
+    potential_images = (_build_study_image(dataset_path, row) for row in get_image_info_from(manifest_csv))
     return filter(None.__ne__, potential_images)
 
 
-def build_study_image(dataset_path, row):
+def _build_study_image(dataset_path, row):
     """
     Uses weird double for loop because Path#glob returns a generator...
     """
@@ -126,11 +113,4 @@ def find_axial_l3_offsets(study_images):
         return np.float32(dataset.SliceLocation)
 
     return np.fromiter(map(get_offset, l3_datasets), dtype=np.float32)
-
-# ct_image_generator = (dicom_src_dir_for(row['subject_id'], row['series']) for row in get_image_info_from())
-# for ct_image in ct_image_generator:
-#     for src_dir in ct_image.src_dirs:
-#         cmd = [str(dcm2niix_exe), '-s', 'y', '-f', ct_image.subject_id, '-o', str(nifti_out_dir), str(src_dir)]
-#         print(cmd)
-#         subprocess.check_call(cmd)
 

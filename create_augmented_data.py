@@ -48,7 +48,7 @@ for group in classes:
         image = np.expand_dims(image, axis=0)
         aug = ImageDataGenerator(rotation_range=25, width_shift_range=0.15,
 	        height_shift_range=0.1, shear_range=0.1, zoom_range=0.15,
-	        horizontal_flip=True, fill_mode="nearest")
+	        horizontal_flip=True, fill_mode="nearest", vertical_flip=True)
         total = 0
         # construct the actual Python generator
         print("[INFO] generating images...")

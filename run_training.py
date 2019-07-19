@@ -315,7 +315,7 @@ def run_training(config):
     # OPTIMIZER
     #opt = SGD(lr=1e-4, momentum=0.9) # Continuous Learning Rate Decay
     opt = Adam(lr = 1e-4)
-    loss_func =  weighted_dice_coefficient_loss_2D #"binary_crossentropy" #  dice_coefficient_loss
+    loss_func = weighted_dice_coefficient_loss_2D #"binary_crossentropy" #  dice_coefficient_loss
    # class_weight = {0: 1.,1: 50.}
 
     ## Make Model MultiGPU
