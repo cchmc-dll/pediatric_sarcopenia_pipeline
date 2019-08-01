@@ -1,0 +1,10 @@
+--training_model_name=retry_bin_aug2_fold_3.h5
+--data_file=./datasets/combined_new_thresholding_aug2.h5
+--data_split=0.9
+--training_split=datasets/combined_new_thresholding_kfold_aug2/fold_3_train.pkl
+--validation_split=datasets/combined_new_thresholding_kfold_aug2/fold_3_val.pkl
+--n_epochs=100
+--image_masks=Muscle
+--problem_type=Segmentation
+--GPU=1
+--batch_size=16

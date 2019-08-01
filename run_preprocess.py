@@ -20,7 +20,7 @@ config["slice_number"] = 0 # Use this if you have a stacked TIF and want only on
                            # slice number goes from 0 to length of Stack
 config['use_middle_image'] = True
 
-config["output_file"] = "combined_new_thresholding.h5"
+config["output_file"] = "combined_aug3_205_fixed.h5"
 
 config["overwrite"] = 1
 config["problem_type"] = "Segmentation"

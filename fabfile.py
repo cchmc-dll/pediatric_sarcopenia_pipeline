@@ -33,7 +33,7 @@ local_training_output_dir = local_root / 'from_remote' / 'training_output'
 
 
 @task
-def run_training(connection, run_name):
+def run_training(connection, run_name, gpuids=0):
     """
     Install necessary packages first with: pip install -r deploy-requirements.txt
 
@@ -52,7 +52,8 @@ def run_training(connection, run_name):
     run_docker_image_for_training(
         connection,
         args_file_path=get_args_file_path(run_name),
-        run_output_dir=docker_run_output_dir
+        run_output_dir=docker_run_output_dir,
+        gpuids=gpuids
     )
     retrieve_training_output(connection, run_dir_name=run_dir_name)
 
@@ -60,13 +61,6 @@ def run_training(connection, run_name):
 def get_run_dir_name(run_name):
     datetime_tag = datetime.now().strftime('%Y%m%d-%H%M%S')
     return f'{run_name}_{datetime_tag}'
-
-
-def load_run_config(run_name, run_output_dir):
-    with open(Path('config', 'run', f'{run_name}.yml'), 'r') as f:
-        config = yaml.safe_load(f)
-    config['output_dir'] = run_output_dir
-    return config
 
 
 def build_docker_image_on_remote(c, run_dir_name):
@@ -124,23 +118,24 @@ def get_args_file_path(run_name):
     return PurePosixPath('config', 'run', f'{run_name}.args')
 
 
-def run_docker_image_for_training(c, args_file_path, run_output_dir):
+def run_docker_image_for_training(c, args_file_path, run_output_dir, gpuids):
     python_cmd = f'python run_training.py @{args_file_path} --output_dir={run_output_dir}'
-    run_training_cmd = docker_run_cmd(python_cmd)
+    run_training_cmd = docker_run_cmd(python_cmd, gpuids=gpuids)
 
     print(run_training_cmd)
     c.run(run_training_cmd)
 
 
-def docker_run_cmd(args):
+def docker_run_cmd(cmd, gpuids):
     return (
         f'docker run -u $(id -u):$(id -g) --runtime=nvidia --rm '
+        f'-e NVIDIA_VISIBLE_DEVICES={gpuids} '
         f'-v {dataset_dir}:{docker_dataset_dir} '
         f'-v {output_dir}:{docker_output_dir} '
         f'-v {predictions_dir}:{docker_predictions_dir} '
         f'-v {training_output_dir}:{docker_training_output_dir} '
         f'-t {docker_image_name} '
-        f'{args} '
+        f'{cmd} '
     )
 
 

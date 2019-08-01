@@ -37,6 +37,6 @@ for i,subject in enumerate(subject_ids):
     path = os.path.join(config['output'],subject)
     create_dir(path)
     shutil.move(img_files[i], os.path.join(path,"CT.tif"))
-    shutil.move(label_files[i], os.path.join(path,"Muscle.tif"))
+    shutil.move(label_files[i], os.path.join(path,"Muscle.tif.bak.bak"))
 
 

@@ -125,9 +125,11 @@ def get_augmented_samples(subset_of_xs, subset_of_ys, samples_per_image):
     datagen_args = dict(
         horizontal_flip=True,
         vertical_flip=True,
-        zoom_range=0.1,
-        rotation_range=20,
-        shear_range=5,
+        zoom_range=0.5,
+        rotation_range=35,
+        shear_range=15,
+        width_shift_range=0.3,
+        height_shift_range=0.3,
     )
 
     seed = 1
@@ -149,7 +151,7 @@ def get_augmented_samples(subset_of_xs, subset_of_ys, samples_per_image):
         x_samples.extend(x_batch)
         y_samples.extend(y_batch)
 
-        if len(x_samples) > len(subset_of_xs) * 10:
+        if len(x_samples) > len(subset_of_xs) * 15:
             break
 
     return np.array(x_samples), make_mask_boolean(np.array(y_samples))
@@ -173,7 +175,8 @@ def get_augmentation_pipeline(xs, ys):
     pipeline.rotate(probability=0.9, max_left_rotation=15, max_right_rotation=15)
     pipeline.flip_top_bottom(probability=0.05)
     pipeline.flip_left_right(probability=0.5)
-    pipeline.zoom(0.75, min_factor=1.0, max_factor=1.1)
+    pipeline.zoom(0.75, min_factor=1.0, max_factor=1.3)
+    pipeline.width(0.75, min_factor=1.0, max_factor=1.3)
     # pipeline.random_brightness(probability=0.9, min_factor=0.9, max_factor=1.1)
 
     return pipeline

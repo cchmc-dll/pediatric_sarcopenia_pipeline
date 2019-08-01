@@ -1,8 +1,8 @@
---training_model_name=combined_aug_fold_0.h5
+--training_model_name=combined_aug_fold_2.h5
 --data_file=./datasets/combined_new_thresholding_aug.h5
 --data_split=0.9
---training_split=datasets/combined_new_thresholding_kfold_aug/fold_0_train.pkl
---validation_split=datasets/combined_new_thresholding_kfold/fold_0_val.pkl
+--training_split=datasets/combined_new_thresholding_kfold_aug/fold_2_train.pkl
+--validation_split=datasets/combined_new_thresholding_kfold/fold_2_val.pkl
 --n_epochs=100
 --image_masks=Muscle
 --problem_type=Segmentation

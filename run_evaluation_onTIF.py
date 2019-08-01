@@ -11,10 +11,10 @@ import matplotlib.pyplot as plt
 
 
 config = dict()
-config['input_dir'] = 'predictions/combined_new_thresholding_bin_cross_fold_4'
+config['input_dir'] = 'predictions/combined_bin_retry_aug2_fold_4'
 config['truth_img'] = 'truth'
 config['prediction_img'] = 'prediction'
-config['output_file'] = 'fold_2.csv'
+config['output_file'] = 'bin_aug_2_retry_fold_4.csv'
 
 
 
@@ -52,7 +52,10 @@ def main():
     df = pd.DataFrame.from_records(rows, columns=header, index=subject_ids)
     print('Index of df:', df.index,'\t', df['DSC'], '\n \n')
     print('Mean: ', np.mean(df['DSC']))
- 
+    print('Median: ', np.median(df['DSC']))
+    print('Min: ', np.min(df['DSC']))
+    print('Max: ', np.max(df['DSC']))
+
  
     df.to_csv(config['input_dir'] + '/' + config['output_file'])
 
