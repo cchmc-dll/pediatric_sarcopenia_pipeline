@@ -6,6 +6,7 @@
 /predictions
 *.h5
 /dicom_anonymizer/tests/data
+/models
 *.dcm
 *.png
 *.tif

@@ -110,7 +110,8 @@ def find_axial_l3_offsets(study_images):
     l3_datasets = (image.get_axial_l3_dataset() for image in study_images)
 
     def get_offset(dataset):
-        return np.float32(dataset.SliceLocation)
+        print('Slice: ', np.float32(dataset.SliceLocation))
+        return np.abs(np.float32(dataset.SliceLocation))
 
     return np.fromiter(map(get_offset, l3_datasets), dtype=np.float32)
 

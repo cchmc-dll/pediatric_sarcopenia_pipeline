@@ -1,0 +1,28 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "L3_finder",
+            "type": "python",
+            "request": "launch",
+            "program": "\\\\vnas1\\root1\\Radiology\\SHARED\\Elan\\Projects\\Skeletal Muscle Project\\Muscle_Segmentation\\L3_finder.py",
+            "console": "integratedTerminal",
+            "args": [
+                "\\\\vnas1\\root1\\Radiology\\SHARED\\Elan\\Projects\\Skeletal Muscle Project\\Dataset2",
+                "\\\\vnas1\\root1\\Radiology\\SHARED\\Elan\\Projects\\Skeletal Muscle Project\\Muscle_Segmentation\\dataset_manifests\\dataset_2_manifest.csv",
+                "\\\\vnas1\\root1\\Radiology\\SHARED\\Elan\\Projects\\Skeletal Muscle Project\\Muscle_Segmentation\\tmp\\",
+                "\\\\vnas1\\root1\\Radiology\\SHARED\\Elan\\Projects\\Skeletal Muscle Project\\Muscle_Segmentation\\datasets\\ds2.npz"
+            ]
+        }
+    ]
+}

@@ -8,6 +8,7 @@ from L3_finder.preprocess import process_image
 
 def main():
     args = parse_args()
+    ensure_output_path_exists(args)
 
     data_for_l3_finder = find_images_and_metadata(
         manifest_csv=Path(args.dicom_csv),
@@ -25,7 +26,7 @@ def main():
 def parse_args():
     parser = ArgumentParser()
 
-    parser.add_argument('dicom_dir', help='Root directory containing dicoms')
+    parser.add_argument('dicom_dir', help='Root directory containing dicoms in format output by Tim\'s script')
     parser.add_argument('dicom_csv', help='CSV outlining which series and slices for a subject id')
     parser.add_argument('nifti_dir', help='Dir for intermediately created niftis')
     parser.add_argument('output_path', help='output .npz file path')
@@ -33,6 +34,9 @@ def parse_args():
     return parser.parse_args()
 
 
+def ensure_output_path_exists(args):
+    if not Path(args.output_path).parent.exists():
+        raise FileNotFoundError(args.output_path)
 # for path in
 #     process_image(path)
 

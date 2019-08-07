@@ -1,0 +1,3 @@
+[submodule "ct-slice-detection"]
+	path = ct-slice-detection
+	url = https://github.com/jac241/ct-slice-detection.git
