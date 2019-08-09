@@ -39,7 +39,7 @@ class StudyImage:
 def find_images_and_metadata(manifest_csv, dataset_path, intermediate_nifti_dir):
     study_images = list(_find_study_images(dataset_path, manifest_csv))
     sagittal_spacings = find_sagittal_image_spacings(study_images, dataset_path)
-    names = np.fromiter((image.name for image in study_images), dtype='S5')
+    names = np.array([image.name for image in study_images], dtype='object')
     ydata = dict(A=find_axial_l3_offsets(study_images))  # One person picked the L3s for this image -> person A
     sagittal_mips = create_sagittal_mips(study_images, intermediate_nifti_dir)
 
@@ -100,7 +100,13 @@ def find_sagittal_image_spacings(study_images, dataset_path):
 
     def get_spacing(dataset):
         spacings = [float(spacing) for spacing in dataset.PixelSpacing]
-        return np.array([spacings[0], spacings[1], float(dataset.SliceThickness)], dtype=np.float32)
+
+        """
+        Repeats the y spacing for now as we haven't implemented this for frontal scans
+        which is where that might make more senese.
+        """
+        return np.array([spacings[0], spacings[1], spacings[1]], dtype=np.float32)
+        # return np.array([spacings[0], spacings[1], float(dataset.SliceThickness)], dtype=np.float32)
 
     spacings = [get_spacing(ds) for ds in datasets]
     return np.array(spacings, dtype=np.float32)
@@ -108,10 +114,15 @@ def find_sagittal_image_spacings(study_images, dataset_path):
 
 def find_axial_l3_offsets(study_images):
     l3_datasets = (image.get_axial_l3_dataset() for image in study_images)
+    sag_datasets = (image.get_dicom_dataset(orientation='sagittal') for image in study_images)
 
-    def get_offset(dataset):
-        print('Slice: ', np.float32(dataset.SliceLocation))
-        return np.abs(np.float32(dataset.SliceLocation))
+    offsets_in_px = []
+    for l3_ds, sag_ds in zip(l3_datasets, sag_datasets):
+        thickness = float(l3_ds.SliceThickness)
+        slice_index = int(l3_ds.InstanceNumber) - 1
+        y_spacing = float(sag_ds.PixelSpacing[1])
 
-    return np.fromiter(map(get_offset, l3_datasets), dtype=np.float32)
+        offsets_in_px.append(slice_index * thickness / y_spacing)
+
+    return np.array(offsets_in_px, dtype=np.float32)
 

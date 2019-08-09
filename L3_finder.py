@@ -37,8 +37,7 @@ def parse_args():
 def ensure_output_path_exists(args):
     if not Path(args.output_path).parent.exists():
         raise FileNotFoundError(args.output_path)
-# for path in
-#     process_image(path)
+
 
 if __name__ == '__main__':
     main()
