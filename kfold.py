@@ -5,7 +5,6 @@ from pathlib import Path
 
 import numpy as np
 import tables
-from Augmentor import DataPipeline
 from keras_preprocessing.image import ImageDataGenerator
 from sklearn.model_selection import KFold, train_test_split
 
@@ -160,26 +159,6 @@ def get_augmented_samples(subset_of_xs, subset_of_ys, samples_per_image):
 def make_mask_boolean(mask):
     mask[mask > 0] = 1
     return mask
-
-
-def get_augmentation_pipeline(xs, ys):
-    im_shape = (256, 256)
-
-    pipeline = DataPipeline([
-        [x, y]
-        for x, y
-        in zip(xs.reshape(len(xs), *im_shape), ys.reshape(len(ys), *im_shape))
-    ])
-
-    # pipeline.random_distortion(probability=0.75, grid_height=4, grid_width=4, magnitude=4)
-    pipeline.rotate(probability=0.9, max_left_rotation=15, max_right_rotation=15)
-    pipeline.flip_top_bottom(probability=0.05)
-    pipeline.flip_left_right(probability=0.5)
-    pipeline.zoom(0.75, min_factor=1.0, max_factor=1.3)
-    pipeline.width(0.75, min_factor=1.0, max_factor=1.3)
-    # pipeline.random_brightness(probability=0.9, min_factor=0.9, max_factor=1.1)
-
-    return pipeline
 
 
 def save_augmented_dataset(input_file_path, kfold):

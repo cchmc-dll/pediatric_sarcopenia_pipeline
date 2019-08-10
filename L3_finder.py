@@ -3,7 +3,6 @@ from pathlib import Path
 import numpy as np
 
 from L3_finder.images import find_images_and_metadata
-from L3_finder.preprocess import process_image
 
 
 def main():
@@ -15,10 +14,6 @@ def main():
         dataset_path=Path(args.dicom_dir),
         intermediate_nifti_dir=Path(args.nifti_dir))
 
-    # create_mip_from_path(Path("D:/muscle_segmentation/dataset_2_nifti/nifti_out/"))
-    # sagittal_paths = list(Path(args.input_dir).glob('*.nii'))
-    # images = np.array([process_image(i) for i in sagittal_paths])
-    #
     np.savez_compressed(args.output_path, **data_for_l3_finder)
     print(args.output_path)
 
