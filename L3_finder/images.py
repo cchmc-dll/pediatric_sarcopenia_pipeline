@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pydicom
 
-from L3_finder.preprocess import create_mip_from_path
+from L3_finder.preprocess import create_mip_from_path, create_mip, slice_middle_images
 
 dcm2niix_exe = Path(os.getcwd(), 'ext', 'dcm2niix.exe')
 
@@ -35,13 +35,31 @@ class StudyImage:
     def name(self):
         return str(self.subject_id)
 
+    def pixel_data(self, orientation, search_pattern='*.dcm'):
+        directory = getattr(self, f'{orientation}_dir')
+        dcm_paths = list(directory.glob(search_pattern))
+        first_image = pydicom.dcmread(str(dcm_paths[0])).pixel_array
+        image_dimensions = first_image.shape
+        out_array = np.ndarray(
+            shape=(len(dcm_paths), image_dimensions[0], image_dimensions[1]),
+            dtype=first_image.dtype
+        )
 
-def find_images_and_metadata(manifest_csv, dataset_path, intermediate_nifti_dir):
-    study_images = list(_find_study_images(dataset_path, manifest_csv))
+        out_array[0] = first_image
+        pixel_arrays = (pydicom.dcmread(str(path)).pixel_array for path in dcm_paths[1:])
+        for index, pixel_array in enumerate(pixel_arrays):
+            out_array[index] = pixel_array
+
+        return out_array
+
+
+
+def find_images_and_metadata(manifest_csv, dataset_path):
+    study_images = list(find_study_images(dataset_path, manifest_csv))
     sagittal_spacings = find_sagittal_image_spacings(study_images, dataset_path)
     names = np.array([image.name for image in study_images], dtype='object')
     ydata = dict(A=find_axial_l3_offsets(study_images))  # One person picked the L3s for this image -> person A
-    sagittal_mips = create_sagittal_mips(study_images, intermediate_nifti_dir)
+    sagittal_mips = create_sagittal_mips(study_images)
 
     assert len(study_images) == len(sagittal_spacings) == len(names) == len(sagittal_mips)
 
@@ -55,7 +73,7 @@ def find_images_and_metadata(manifest_csv, dataset_path, intermediate_nifti_dir)
     )
 
 
-def _find_study_images(dataset_path, manifest_csv):
+def find_study_images(dataset_path, manifest_csv):
     """Potential because folders may not exist..."""
     potential_images = (_build_study_image(dataset_path, row) for row in get_image_info_from(manifest_csv))
     return filter(None.__ne__, potential_images)
@@ -76,19 +94,24 @@ def get_image_info_from(csv_path):
         yield from csv_reader
 
 
-def create_sagittal_mips(study_images, nifti_out_dir):
-    def convert_to_nifti(image):
-        output_path = Path(nifti_out_dir, f'{image.subject_id}.nii')
-        if output_path.exists():
-            print(f'{output_path.name} already exists, using existing nifti file')
-        else:
-            nifti_from_dcm_image(image, nifti_out_dir)
-        return output_path
+def create_sagittal_mips(study_images):
+    # def convert_to_nifti(image):
+    #     output_path = Path(nifti_out_dir, f'{image.subject_id}.nii')
+    #     if output_path.exists():
+    #         print(f'{output_path.name} already exists, using existing nifti file')
+    #     else:
+    #         nifti_from_dcm_image(image, nifti_out_dir)
+    #     return output_path
 
-    nifti_paths = map(convert_to_nifti, study_images)
-    mips = [create_mip_from_path(p) for i, p in enumerate(nifti_paths)]
-    return np.array(mips)
-
+    # nifti_paths = map(convert_to_nifti, study_images)
+    # mips = [create_mip_from_path(p) for i, p in enumerate(nifti_paths)]
+    # return np.array(mips)
+    mips = [
+        create_mip(slice_middle_images(image.pixel_data(orientation='sagittal')))
+        for image
+        in study_images
+    ]
+    return np.array(mips, dtype=np.float32)
 
 def nifti_from_dcm_image(study_image, nifti_out_dir):
     cmd = [str(dcm2niix_exe), '-s', 'y', '-f', study_image.subject_id, '-o', str(nifti_out_dir), str(study_image.sagittal_dir)]

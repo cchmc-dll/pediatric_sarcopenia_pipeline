@@ -1,39 +1,45 @@
 from argparse import ArgumentParser
+from L3_finder.images import find_images_and_metadata
+from L3_finder.preprocess import slice_middle_images, create_mip
+from L3_finder.predict import make_predictions_for_images
 from pathlib import Path
 import numpy as np
-
-from L3_finder.images import find_images_and_metadata
-
-
-def main():
-    args = parse_args()
-    ensure_output_path_exists(args)
-
-    data_for_l3_finder = find_images_and_metadata(
-        manifest_csv=Path(args.dicom_csv),
-        dataset_path=Path(args.dicom_dir),
-        intermediate_nifti_dir=Path(args.nifti_dir))
-
-    np.savez_compressed(args.output_path, **data_for_l3_finder)
-    print(args.output_path)
-
+from toolz import pipe
 
 def parse_args():
     parser = ArgumentParser()
 
     parser.add_argument('dicom_dir', help='Root directory containing dicoms in format output by Tim\'s script')
-    parser.add_argument('dicom_csv', help='CSV outlining which series and slices for a subject id')
-    parser.add_argument('nifti_dir', help='Dir for intermediately created niftis')
-    parser.add_argument('output_path', help='output .npz file path')
+    parser.add_argument('dataset_manifest_path', help='CSV outlining which series and slices for a subject id')
+    parser.add_argument('model_path', help='Path to .h5 model')
+    # parser.add_argument('nifti_dir', help='Dir for intermediately created niftis')
+    # parser.add_argument('output_path', help='output .npz file path')
 
     return parser.parse_args()
 
+def main():
+    args = parse_args()
+    # study_images = find_study_images(Path(args.dicom_dir), args.dataset_manifest_path)
+    dataset = find_images_and_metadata(args.dataset_manifest_path, Path(args.dicom_dir))
+    # sagittal_mips = [
+    #     create_mip(slice_middle_images(image.pixel_data(orientation='sagittal')))
+    #     for image
+    #     in study_images
+    # ]
 
-def ensure_output_path_exists(args):
-    if not Path(args.output_path).parent.exists():
-        raise FileNotFoundError(args.output_path)
+    debug_plot(dataset['images_s'])
 
+    predictions = make_predictions_for_images(dataset, args.model_path)
 
-if __name__ == '__main__':
+def debug_plot(images):
+    from matplotlib import pyplot as plt
+    # fig=plt.figure(figsize=(10, 10))
+    # columns = 4
+    # rows = 3
+    # for i in range(1, columns*rows +1):
+    #     fig.add_subplot(rows, columns, i)
+    plt.imshow(images[0])
+    plt.show()
+
+if __name__ == "__main__":
     main()
-

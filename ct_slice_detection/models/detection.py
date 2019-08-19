@@ -321,3 +321,26 @@ class CNNLine(BaseModelWrapper):
         model.compile(optimizer='adam', loss='mse', metrics=['mae'], loss_weights=[1000])
         return model
 
+
+def build_prediction_model(input_shape=(None,None, 1)):
+    inputs = Input(input_shape)
+
+    conv2, pool2 = conv_block(inputs, num_filters=32, kernel_size=3, num_blocks=2)
+    conv3, pool3 = conv_block(pool2, num_filters=64, kernel_size=3, num_blocks=2)
+    conv4, pool4 = conv_block(pool3, num_filters=128, kernel_size=3, num_blocks=2)
+    conv5, pool5 = conv_block(pool4, num_filters=256, kernel_size=5, num_blocks=1, pool_size=4)
+    #     conv6, pool5 = conv_block(conv5, num_filters=512, kernel_size=1)
+    # pool5 = SpatialDropout2D(0.25)(pool5)
+    conv_mid = conv_block(pool5, num_filters=512, kernel_size=3, num_blocks=2, pool_size=None)
+    conv_mid = GlobalMaxHorizontalPooling2D()(conv_mid)
+    conv6 = up_conv_block_add_1D(conv_mid, conv5, num_filters=256, kernel_size=5, num_blocks=1, up_size=4)
+    conv7 = up_conv_block_add_1D(conv6, conv4, num_filters=128, kernel_size=3, num_blocks=2)
+    conv8 = up_conv_block_add_1D(conv7, conv3, num_filters=128, kernel_size=3, num_blocks=2)
+    conv9 = up_conv_block_add_1D(conv8, conv2, num_filters=128, kernel_size=3, num_blocks=2)
+
+    conv10 = Conv1D(1, 1, activation='sigmoid', name='last_conv', padding='same')(conv9)
+
+    model = Model(inputs=[inputs], outputs=[conv10], name='predictor')
+
+    model.compile(optimizer='adam', loss='mse', metrics=['mae'], loss_weights=[1000])
+    return model
