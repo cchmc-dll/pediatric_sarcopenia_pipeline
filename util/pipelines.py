@@ -1,7 +1,7 @@
 from typing import Callable
 
 
-class PipelineStep:
+class CachablePipelineStep:
     def load(self):
         pass
 
@@ -12,7 +12,7 @@ class PipelineStep:
         pass
 
 
-def load_from_cache_or_run_step(use_cache: bool, pipeline_step: PipelineStep):
+def load_from_cache_or_run_step(use_cache: bool, pipeline_step: CachablePipelineStep):
     def wrapper():
         if use_cache:
             try:
