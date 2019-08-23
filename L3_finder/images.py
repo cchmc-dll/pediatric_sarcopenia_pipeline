@@ -8,6 +8,7 @@ from pathlib import Path
 import pydicom
 
 from L3_finder.preprocess import create_mip_from_path, create_mip, slice_middle_images
+from util.pipelines import load_from_cache_or_execute
 
 dcm2niix_exe = Path(os.getcwd(), 'ext', 'dcm2niix.exe')
 
@@ -53,8 +54,7 @@ class StudyImage:
         return out_array
 
 
-
-def find_images_and_metadata(manifest_csv, dataset_path):
+def find_images_and_ydata_in_l3_finder_format(manifest_csv, dataset_path):
     study_images = list(find_study_images(dataset_path, manifest_csv))
     sagittal_spacings = find_sagittal_image_spacings(study_images, dataset_path)
     names = np.array([image.name for image in study_images], dtype='object')

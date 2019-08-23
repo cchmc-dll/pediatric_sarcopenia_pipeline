@@ -1,5 +1,5 @@
 from argparse import ArgumentParser
-from L3_finder.images import find_images_and_metadata
+from L3_finder.images import find_images_and_ydata_in_l3_finder_format
 from L3_finder.preprocess import slice_middle_images, create_mip
 from L3_finder.predict import make_predictions_for_images
 from pathlib import Path
@@ -20,7 +20,7 @@ def parse_args():
 def main():
     args = parse_args()
     # study_images = find_study_images(Path(args.dicom_dir), args.dataset_manifest_path)
-    dataset = find_images_and_metadata(args.dataset_manifest_path, Path(args.dicom_dir))
+    dataset = find_images_and_ydata_in_l3_finder_format(args.dataset_manifest_path, Path(args.dicom_dir))
     # sagittal_mips = [
     #     create_mip(slice_middle_images(image.pixel_data(orientation='sagittal')))
     #     for image
