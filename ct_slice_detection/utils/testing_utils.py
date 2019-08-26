@@ -87,16 +87,12 @@ def preprocess_test_image(img):
 
 
 def predict_slice(model, img, ds):
-
-
-    img = preprocess_test_image(img)
     img = img[np.newaxis, :, :, np.newaxis]
     preds = model.predict(img)
 
     m = ds * find_max(preds[0, :]) + ds // 2
     max_pred = preds.max()
     return m, max_pred, preds, img
-
 
 
 def predict_and_evaluate(args, test_data, modelwrapper, suffix=''):
@@ -108,13 +104,12 @@ def predict_and_evaluate(args, test_data, modelwrapper, suffix=''):
     if args.mode == 'heatmap':
         for i, (image, y, name, spacing) in enumerate(zip(test_data.x_val, test_data.y_val,
                                                           test_data.names_val, test_data.spacings_val)):
-
-
             printProgressBar(i, len(test_data.x_val))
             slice_thickness = spacing[2]
             height = image.shape[0]
 
-            pred_y, prob, pred_map, img = predict_slice(modelwrapper.model, image, ds=ds)
+            preprocessed_image = preprocess_test_image(image)
+            pred_y, prob, pred_map, img = predict_slice(modelwrapper.model, preprocessed_image, ds=ds)
             pred_map = np.expand_dims(zoom(np.squeeze(pred_map), ds), 2)
 
             img = img[:, :height, :, :]
@@ -131,15 +126,7 @@ def predict_and_evaluate(args, test_data, modelwrapper, suffix=''):
             sub_dir = os.path.join(out_path, str(5 * (e // 5)))
             os.makedirs(sub_dir, exist_ok=True)
 
-            img = to256(img)
-
-            if pred_map.shape[1] == 1:
-                pred_map = np.expand_dims(np.concatenate([pred_map]*img.shape[2],axis=1),2)
-            img = overlay_heatmap_on_image(img, pred_map)
-            img = np.hstack([img[0], gray2rgb(to256(preprocess_test_image(image)[:height, :]))])
-            img = place_line_on_img(img, y, pred_y, r=1)
-
-
+            img = create_output_image(height, image, img, pred_map, pred_y, y)
 
             imageio.imwrite(os.path.join(sub_dir, str(i) + '_' + str(name) + '_map'+suffix+'.jpg'),
                             np.clip(img, 0, 255).astype(np.uint8))
@@ -181,3 +168,13 @@ def predict_and_evaluate(args, test_data, modelwrapper, suffix=''):
                             np.clip(img, 0, 255).astype(np.uint8))
 
             df.to_csv(os.path.join(args.model_path, modelwrapper.name + '_preds.csv'))
+
+
+def create_output_image(height, image, unpadded_image, unpadded_pred_map, pred_y, y):
+    unpadded_image = to256(unpadded_image)
+    if unpadded_pred_map.shape[1] == 1:
+        unpadded_pred_map = np.expand_dims(np.concatenate([unpadded_pred_map] * unpadded_image.shape[2], axis=1), 2)
+    unpadded_image = overlay_heatmap_on_image(unpadded_image, unpadded_pred_map)
+    unpadded_image = np.hstack([unpadded_image[0], gray2rgb(to256(preprocess_test_image(image)[:height, :]))])
+    unpadded_image = place_line_on_img(unpadded_image, y, pred_y, r=1)
+    return unpadded_image

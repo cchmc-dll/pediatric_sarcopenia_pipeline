@@ -11,8 +11,8 @@ def main():
 
     data_for_l3_finder = find_images_and_ydata_in_l3_finder_format(
         manifest_csv=Path(args.dicom_csv),
-        dataset_path=Path(args.dicom_dir),
-        intermediate_nifti_dir=Path(args.nifti_dir))
+        dataset_path=Path(args.dicom_dir)
+    )
 
     np.savez_compressed(args.output_path, **data_for_l3_finder)
     print(args.output_path)
@@ -22,8 +22,7 @@ def parse_args():
     parser = ArgumentParser()
 
     parser.add_argument('dicom_dir', help='Root directory containing dicoms in format output by Tim\'s script')
-    parser.add_argument('dicom_csv', help='CSV outlining which series and slices for a subject id')
-    parser.add_argument('nifti_dir', help='Dir for intermediately created niftis')
+    parser.add_argument('dicom_casdsv', help='CSV outlining which series and slices for a subject id')
     parser.add_argument('output_path', help='output .npz file path')
 
     return parser.parse_args()

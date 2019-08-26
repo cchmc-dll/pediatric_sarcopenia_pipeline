@@ -1,3 +1,4 @@
+import random
 from argparse import ArgumentParser
 from L3_finder.images import find_images_and_ydata_in_l3_finder_format
 from L3_finder.preprocess import slice_middle_images, create_mip
@@ -5,6 +6,10 @@ from L3_finder.predict import make_predictions_for_images
 from pathlib import Path
 import numpy as np
 from toolz import pipe
+from matplotlib import pyplot as plt
+
+from ct_slice_detection.io.preprocessing import to256
+
 
 def parse_args():
     parser = ArgumentParser()
@@ -27,19 +32,27 @@ def main():
     #     in study_images
     # ]
 
-    debug_plot(dataset['images_s'])
-
     predictions = make_predictions_for_images(dataset, args.model_path)
 
-def debug_plot(images):
-    from matplotlib import pyplot as plt
-    # fig=plt.figure(figsize=(10, 10))
-    # columns = 4
-    # rows = 3
-    # for i in range(1, columns*rows +1):
-    #     fig.add_subplot(rows, columns, i)
-    plt.imshow(images[0])
+    random.seed(9000)
+
+    for result in random.sample(predictions, 10):
+        debug_plot(result.display_image.astype(np.float32), result.display_image.shape)
+
+def debug_plot(image, shape):
+    plt.imshow(image.reshape(shape))
     plt.show()
+
+
+# def debug_plot(images):
+#     from matplotlib import pyplot as plt
+#     # fig=plt.figure(figsize=(10, 10))
+#     # columns = 4
+#     # rows = 3
+#     # for i in range(1, columns*rows +1):
+#     #     fig.add_subplot(rows, columns, i)
+#     plt.imshow(images[0])
+#     plt.show()
 
 if __name__ == "__main__":
     main()
