@@ -1,16 +1,38 @@
 import csv
 import os
 import subprocess
+import sys
+
 import numpy as np
 from collections import namedtuple
 from pathlib import Path
+from tqdm import tqdm
 
 import pydicom
 
 from L3_finder.preprocess import create_mip_from_path, create_mip, slice_middle_images
-from util.pipelines import load_from_cache_or_execute
+from util.pipelines import load_from_cache_or_execute, CachablePipelineStep
 
 dcm2niix_exe = Path(os.getcwd(), 'ext', 'dcm2niix.exe')
+
+
+class CachableL3PreprocessingStep:
+    def __init__(self, cached_file_path, manifest_csv_path, dataset_path):
+        self._cached_file_path = cached_file_path
+        self._manifest_csv_path = manifest_csv_path
+        self._dataset_path = dataset_path
+
+    def load(self):
+        if not self._cached_file_path.exists():
+            raise FileNotFoundError
+
+        return np.load(str(self._cached_file_path), allow_pickle=True)
+
+    def __call__(self):
+        return find_images_and_ydata_in_l3_finder_format(self._manifest_csv_path, self._dataset_path)
+
+    def save(self, data_for_l3_finder):
+        np.savez_compressed(str(self._cached_file_path), **data_for_l3_finder)
 
 
 class StudyImage:
@@ -59,6 +81,8 @@ def find_images_and_ydata_in_l3_finder_format(manifest_csv, dataset_path):
     sagittal_spacings = find_sagittal_image_spacings(study_images, dataset_path)
     names = np.array([image.name for image in study_images], dtype='object')
     ydata = dict(A=find_axial_l3_offsets(study_images))  # One person picked the L3s for this image -> person A
+
+    print("Creating sagittal mips...", file=sys.stderr)
     sagittal_mips = create_sagittal_mips(study_images)
 
     assert len(study_images) == len(sagittal_spacings) == len(names) == len(sagittal_mips)
@@ -109,9 +133,9 @@ def create_sagittal_mips(study_images):
     mips = [
         create_mip(slice_middle_images(image.pixel_data(orientation='sagittal')))
         for image
-        in study_images
+        in tqdm(study_images)
     ]
-    return np.array(mips, dtype=np.float32)
+    return np.array(mips)
 
 def nifti_from_dcm_image(study_image, nifti_out_dir):
     cmd = [str(dcm2niix_exe), '-s', 'y', '-f', study_image.subject_id, '-o', str(nifti_out_dir), str(study_image.sagittal_dir)]

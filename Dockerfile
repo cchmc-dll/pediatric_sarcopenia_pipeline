@@ -20,6 +20,7 @@ WORKDIR /opt/app
 
 RUN pip install --default-timeout=60 -r requirements.txt
 RUN pip install git+https://github.com/PyTables/PyTables.git@v3.5.2
+RUN pip install imgaug==0.2.9
 # Install PyTables from source
 # COPY ./PyTables /opt/app/PyTables
 # WORKDIR /opt/app/PyTables

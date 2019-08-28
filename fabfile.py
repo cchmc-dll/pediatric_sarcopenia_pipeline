@@ -58,6 +58,17 @@ def run_training(connection, run_name, gpuids=0):
     retrieve_training_output(connection, run_dir_name=run_dir_name)
 
 
+@task
+def run_in_docker(connection, run_name, docker_cmd, gpuids=0):
+    run_dir_name = get_run_dir_name(run_name)
+    build_docker_image_on_remote(connection, run_dir_name)
+
+    run_training_cmd = docker_run_cmd(docker_cmd, gpuids=gpuids)
+
+    print(run_training_cmd)
+    connection.run(run_training_cmd)
+
+
 def get_run_dir_name(run_name):
     datetime_tag = datetime.now().strftime('%Y%m%d-%H%M%S')
     return f'{run_name}_{datetime_tag}'

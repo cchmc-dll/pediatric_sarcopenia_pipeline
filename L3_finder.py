@@ -17,20 +17,13 @@ def parse_args():
     parser.add_argument('dicom_dir', help='Root directory containing dicoms in format output by Tim\'s script')
     parser.add_argument('dataset_manifest_path', help='CSV outlining which series and slices for a subject id')
     parser.add_argument('model_path', help='Path to .h5 model')
-    # parser.add_argument('nifti_dir', help='Dir for intermediately created niftis')
-    # parser.add_argument('output_path', help='output .npz file path')
 
     return parser.parse_args()
 
+
 def main():
     args = parse_args()
-    # study_images = find_study_images(Path(args.dicom_dir), args.dataset_manifest_path)
     dataset = find_images_and_ydata_in_l3_finder_format(args.dataset_manifest_path, Path(args.dicom_dir))
-    # sagittal_mips = [
-    #     create_mip(slice_middle_images(image.pixel_data(orientation='sagittal')))
-    #     for image
-    #     in study_images
-    # ]
 
     predictions = make_predictions_for_images(dataset, args.model_path)
 
@@ -39,10 +32,10 @@ def main():
     for result in random.sample(predictions, 10):
         debug_plot(result.display_image.astype(np.float32), result.display_image.shape)
 
+
 def debug_plot(image, shape):
     plt.imshow(image.reshape(shape))
     plt.show()
-
 
 # def debug_plot(images):
 #     from matplotlib import pyplot as plt

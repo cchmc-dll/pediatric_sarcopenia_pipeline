@@ -12,7 +12,7 @@ class CachablePipelineStep:
         pass
 
 
-def load_from_cache_or_run_step(use_cache: bool, pipeline_step: CachablePipelineStep):
+def make_load_from_cache_or_run_step(use_cache: bool, pipeline_step):
     def wrapper():
         if use_cache:
             try:
