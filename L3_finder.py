@@ -27,10 +27,8 @@ def main():
 
     study_images = load_l3_dataset(args)
 
-    predictions = toolz.pipe(
-        study_images,
-        *build_l3_finder_pipeline(args)
-    )
+    pipeline = build_l3_finder_pipeline(args)
+    predictions = pipeline(study_images)
 
 
 def load_l3_dataset(args):
@@ -45,14 +43,20 @@ def load_l3_dataset(args):
 
 
 def build_l3_finder_pipeline(args):
-    return [
-        functools.partial(make_predictions_for_images, model_path=args.model_path),
-        list,
-        show_sample_of_prediction_images
-    ]
+    def l3_finder_pipeline(data):
+        return toolz.pipe(
+            data,
+            functools.partial(make_predictions_for_images, model_path=args.model_path),
+            list,
+            show_sample_of_prediction_images
+        )
+
+    return l3_finder_pipeline
 
 
 def show_sample_of_prediction_images(predictions):
+    random.seed(1000)
+
     for index, result in enumerate(random.sample(predictions, min(10, len(predictions)))):
         plt.imshow(result.display_image, cmap='bone')
         plt.show()
