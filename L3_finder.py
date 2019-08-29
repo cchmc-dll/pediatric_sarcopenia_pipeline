@@ -1,16 +1,14 @@
+import functools
 import random
 from argparse import ArgumentParser
-from L3_finder.images import find_images_and_ydata_in_l3_finder_format, CachableL3ImageLoaderStep
-from L3_finder.preprocess import slice_middle_images, create_mip
-from L3_finder.predict import make_predictions_for_images
 from pathlib import Path
-import numpy as np
-from toolz import pipe
-from matplotlib import pyplot as plt
-import imageio
 
-from ct_slice_detection.io.preprocessing import to256
-from util.pipelines import make_load_from_cache_or_run_step
+import toolz
+from matplotlib import pyplot as plt
+
+from L3_finder.images import LoadL3DatasetCachableStep
+from L3_finder.predict import make_predictions_for_images
+from util.pipelines import build_callable_that_loads_from_cache_or_runs_step
 
 
 def parse_args():
@@ -26,44 +24,41 @@ def parse_args():
 
 def main():
     args = parse_args()
-    # dataset = find_images_and_ydata_in_l3_finder_format(args.dataset_manifest_path, Path(args.dicom_dir))
 
-    dataset = make_load_from_cache_or_run_step(
+    study_images = load_l3_dataset(args)
+
+    predictions = toolz.pipe(
+        study_images,
+        *build_l3_finder_pipeline(args)
+    )
+
+
+def load_l3_dataset(args):
+    return build_callable_that_loads_from_cache_or_runs_step(
         use_cache=True,
-        pipeline_step=CachableL3ImageLoaderStep(
+        pipeline_step=LoadL3DatasetCachableStep(
             cached_file_path=Path(args.dataset_cache_path),
             manifest_csv_path=Path(args.dataset_manifest_path),
             dataset_path=Path(args.dicom_dir)
         )
     )()
 
-    predictions = make_predictions_for_images(dataset, args.model_path)
 
-    random.seed(9000)
-
-    for index, result in enumerate(random.sample(list(predictions), 10)):
-        imageio.imwrite(f'{index}.png', result.display_image)
-
-        print(result.prediction.predicted_y)
-        pass
-
-        # i = result.display_image
-        # debug_plot(i, shape=(i.shape[1], i.shape[2]))
+def build_l3_finder_pipeline(args):
+    return [
+        functools.partial(make_predictions_for_images, model_path=args.model_path),
+        list,
+        show_sample_of_prediction_images
+    ]
 
 
-def debug_plot(image, shape):
-    plt.imshow(image.reshape(shape))
-    plt.show()
+def show_sample_of_prediction_images(predictions):
+    for index, result in enumerate(random.sample(predictions, min(10, len(predictions)))):
+        plt.imshow(result.display_image, cmap='bone')
+        plt.show()
 
-# def debug_plot(images):
-#     from matplotlib import pyplot as plt
-#     # fig=plt.figure(figsize=(10, 10))
-#     # columns = 4
-#     # rows = 3
-#     # for i in range(1, columns*rows +1):
-#     #     fig.add_subplot(rows, columns, i)
-#     plt.imshow(images[0])
-#     plt.show()
+    return predictions
+
 
 if __name__ == "__main__":
     main()

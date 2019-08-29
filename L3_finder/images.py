@@ -11,12 +11,12 @@ from tqdm import tqdm
 import pydicom
 
 from L3_finder.preprocess import create_mip_from_path, create_mip, slice_middle_images
-from util.pipelines import load_from_cache_or_execute, CachablePipelineStep
+from util.pipelines import build_callable_that_loads_from_cache_or_runs_func, CachablePipelineStep
 
 dcm2niix_exe = Path(os.getcwd(), 'ext', 'dcm2niix.exe')
 
 
-class CachableL3ImageLoaderStep:
+class LoadL3DatasetCachableStep:
     def __init__(self, cached_file_path, manifest_csv_path, dataset_path):
         self._cached_file_path = cached_file_path
         self._manifest_csv_path = manifest_csv_path

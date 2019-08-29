@@ -12,8 +12,8 @@ class CachablePipelineStep:
         pass
 
 
-def make_load_from_cache_or_run_step(use_cache: bool, pipeline_step):
-    def wrapper():
+def build_callable_that_loads_from_cache_or_runs_step(use_cache: bool, pipeline_step):
+    def new_callable():
         if use_cache:
             try:
                 return pipeline_step.load()
@@ -25,10 +25,10 @@ def make_load_from_cache_or_run_step(use_cache: bool, pipeline_step):
         else:
             return pipeline_step()
 
-    return wrapper
+    return new_callable
 
 
-def load_from_cache_or_execute(
+def build_callable_that_loads_from_cache_or_runs_func(
         use_cache: bool,
         load_function: Callable,
         save_function: Callable,
@@ -51,7 +51,7 @@ def load_from_cache_or_execute(
     :return: a function that returns the cached results, executes the main_function if no results, or executes the
         main_function if use_cache=False passed
     """
-    def wrapper():
+    def new_callable():
         if use_cache:
             try:
                 return load_function()
@@ -61,10 +61,10 @@ def load_from_cache_or_execute(
                 return results
         else:
             return main_function(*args, **kwargs)
-    return wrapper
+    return new_callable
 
 
-pipeline_example = load_from_cache_or_execute(
+pipeline_example = build_callable_that_loads_from_cache_or_runs_func(
     use_cache=True,
     load_function=lambda: [1, 2, 3],
     save_function=lambda results: print('saved :', results),
