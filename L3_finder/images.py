@@ -1,4 +1,5 @@
 import csv
+import functools
 import os
 import subprocess
 import sys
@@ -58,7 +59,7 @@ class StudyImage:
     def name(self):
         return str(self.subject_id)
 
-    def pixel_data(self, orientation, search_pattern='*.dcm'):
+    def _pixel_data(self, orientation, search_pattern='*.dcm'):
         directory = getattr(self, f'{orientation}_dir')
         dcm_paths = list(directory.glob(search_pattern))
         first_image = pydicom.dcmread(str(dcm_paths[0])).pixel_array
@@ -74,6 +75,9 @@ class StudyImage:
             out_array[index] = pixel_array
 
         return out_array
+
+    sagittal_pixel_data = functools.partialmethod(_pixel_data, orientation='sagittal')
+    axial_pixel_data = functools.partialmethod(_pixel_data, orientation='axial')
 
 
 def find_images_and_ydata_in_l3_finder_format(manifest_csv, dataset_path):
@@ -131,7 +135,7 @@ def create_sagittal_mips(study_images):
     # mips = [create_mip_from_path(p) for i, p in enumerate(nifti_paths)]
     # return np.array(mips)
     mips = [
-        create_mip(slice_middle_images(image.pixel_data(orientation='sagittal')))
+        create_mip(slice_middle_images(image.sagittal_pixel_data()))
         for image
         in tqdm(study_images)
     ]

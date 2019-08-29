@@ -39,7 +39,7 @@ def normalise_spacing_and_preprocess(dataset, new_spacing=1):
     images_norm = []
     slice_loc_norm = []
     heights = []
-    for image, l3_location, spacing in zip(dataset['images_s'], dataset['ydata'].tolist()['A'], dataset['spacings']):
+    for image, l3_location, spacing in zip(dataset['images_s'], handle_ydata(dataset['ydata']), dataset['spacings']):
         img = zoom(image, [spacing[2] / new_spacing, spacing[0] / new_spacing])
         images_norm.append(preprocess_to_8bit(img))
         slice_loc_norm.append(int(l3_location * spacing[2] / new_spacing))
