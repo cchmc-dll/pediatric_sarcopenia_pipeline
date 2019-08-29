@@ -16,7 +16,7 @@ from util.pipelines import load_from_cache_or_execute, CachablePipelineStep
 dcm2niix_exe = Path(os.getcwd(), 'ext', 'dcm2niix.exe')
 
 
-class CachableL3PreprocessingStep:
+class CachableL3ImageLoaderStep:
     def __init__(self, cached_file_path, manifest_csv_path, dataset_path):
         self._cached_file_path = cached_file_path
         self._manifest_csv_path = manifest_csv_path
@@ -26,7 +26,7 @@ class CachableL3PreprocessingStep:
         if not self._cached_file_path.exists():
             raise FileNotFoundError
 
-        return np.load(str(self._cached_file_path), allow_pickle=True)
+        return np.load(str(self._cached_file_path))
 
     def __call__(self):
         return find_images_and_ydata_in_l3_finder_format(self._manifest_csv_path, self._dataset_path)

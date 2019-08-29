@@ -56,7 +56,7 @@ def main():
     # GPU allocation options
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
-    config.gpu_options.visible_device_list = args.cuda_devices
+    # config.gpu_options.visible_device_list = args.cuda_devices
     set_session(tf.Session(config=config))
 
     #Handle restarting and resuming training

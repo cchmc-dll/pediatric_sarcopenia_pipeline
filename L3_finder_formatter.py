@@ -2,7 +2,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 import numpy as np
 
-from L3_finder.images import find_images_and_ydata_in_l3_finder_format, CachableL3PreprocessingStep
+from L3_finder.images import find_images_and_ydata_in_l3_finder_format, CachableL3ImageLoaderStep
 from util.pipelines import make_load_from_cache_or_run_step
 
 
@@ -12,7 +12,7 @@ def main():
 
     data_for_l3_finder = make_load_from_cache_or_run_step(
         use_cache=True,
-        pipeline_step=CachableL3PreprocessingStep(
+        pipeline_step=CachableL3ImageLoaderStep(
             cached_file_path=Path(args.output_path),
             manifest_csv_path=Path(args.dicom_csv),
             dataset_path=Path(args.dicom_dir)

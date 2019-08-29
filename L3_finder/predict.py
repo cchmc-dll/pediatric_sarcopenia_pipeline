@@ -1,7 +1,9 @@
+import sys
 from collections import namedtuple
 
 import numpy as np
 from scipy.ndimage import zoom
+from skimage.draw import line_aa
 from toolz import pipe
 
 from ct_slice_detection.models.detection import build_prediction_model
@@ -18,15 +20,16 @@ def make_predictions_for_images(dataset, model_path):
     model = load_model(model_path)
     for image, truth, image_height in zip(*preprocess_images(dataset)):
         prediction = make_prediction(model, image)
-        unpadded_image, unpadded_pred_map = undo_padding(prediction, image_height)
-        display_image = create_output_image(
-            height=image_height,
-            image=image.reshape(image.shape[0], image.shape[1]),
-            unpadded_image=unpadded_image,
-            unpadded_pred_map=unpadded_pred_map,
-            y=truth,
-            pred_y=prediction.predicted_y,
-        )
+        unpadded_image, _ = undo_padding(prediction, image_height)
+        # display_image = create_output_image(
+        #     height=image_height,
+        #     image=image.reshape(image.shape[0], image.shape[1]),
+        #     unpadded_image=unpadded_image,
+        #     unpadded_pred_map=unpadded_pred_map,
+        #     y=truth,
+        #     pred_y=prediction.predicted_y,
+        # )
+        display_image = draw_line_on_predicted_image(prediction, unpadded_image)
         yield Result(prediction, display_image)
 
 
@@ -45,7 +48,7 @@ def normalise_spacing_and_preprocess(dataset, new_spacing=1):
     images_norm = []
     slice_loc_norm = []
     heights = []
-    for image, l3_location, spacing in zip(dataset['images_s'], dataset['ydata']['A'], dataset['spacings']):
+    for image, l3_location, spacing in zip(dataset['images_s'], dataset['ydata'].tolist()['A'], dataset['spacings']):
         img = zoom(image, [spacing[2] / new_spacing, spacing[0] / new_spacing])
         images_norm.append(preprocess_to_8bit(img))
         slice_loc_norm.append(int(l3_location * spacing[2] / new_spacing))
@@ -69,6 +72,26 @@ def undo_padding(prediction, image_height):
     prediction_map = prediction.prediction_map
 
     return image[:, :image_height, :, :], prediction_map[:image_height, :],
+
+
+def draw_line_on_predicted_image(prediction, unpadded_image):
+    rr, cc, val = line_aa(
+        r0=prediction.predicted_y,
+        c0=0,
+        r1=prediction.predicted_y,
+        c1=unpadded_image.shape[2] - 1
+    )
+    output = unpadded_image.reshape(unpadded_image.shape[1], unpadded_image.shape[2])
+    try:
+        output[rr, cc] = val * 255
+    except IndexError:
+        print("error drawing line on image for:", file=sys.stderr)
+        print(unpadded_image.shape, prediction.predicted_y, file=sys.stderr)
+    finally:
+        return output
+
+
+
 
 
 # def create_image_with_lines_from_prediction(prediction, truth):

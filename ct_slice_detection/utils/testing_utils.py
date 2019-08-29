@@ -175,6 +175,6 @@ def create_output_image(height, image, unpadded_image, unpadded_pred_map, pred_y
     if unpadded_pred_map.shape[1] == 1:
         unpadded_pred_map = np.expand_dims(np.concatenate([unpadded_pred_map] * unpadded_image.shape[2], axis=1), 2)
     unpadded_image = overlay_heatmap_on_image(unpadded_image, unpadded_pred_map)
-    unpadded_image = np.hstack([unpadded_image[0], gray2rgb(to256(preprocess_test_image(image)[:height, :]))])
+    # unpadded_image = np.hstack([unpadded_image[0], gray2rgb(to256(preprocess_test_image(image)[:height, :]))])
     unpadded_image = place_line_on_img(unpadded_image, y, pred_y, r=1)
     return unpadded_image
