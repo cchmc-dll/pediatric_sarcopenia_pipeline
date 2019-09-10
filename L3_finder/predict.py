@@ -4,7 +4,7 @@ from collections import namedtuple
 from skimage.draw import line_aa
 from tqdm import tqdm
 
-from L3_finder.preprocess import preprocess_images
+
 from ct_slice_detection.models.detection import build_prediction_model
 from ct_slice_detection.utils.testing_utils import predict_slice
 
@@ -75,3 +75,6 @@ def draw_line_on_predicted_image(prediction, unpadded_image, console):
         )
     finally:
         return output
+
+
+
