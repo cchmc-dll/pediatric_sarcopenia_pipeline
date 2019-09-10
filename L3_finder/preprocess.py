@@ -1,6 +1,14 @@
+from collections import namedtuple
+
 import SimpleITK as sitk
 import cv2
 import numpy as np
+import toolz
+from scipy.ndimage import zoom
+from tqdm import tqdm
+
+from ct_slice_detection.io.preprocessing import preprocess_to_8bit
+from ct_slice_detection.utils.testing_utils import preprocess_test_image
 
 
 def create_mip_from_path(path):
@@ -52,3 +60,69 @@ def process_image(path):
     norm = normalize_to_8bit(mip)
     print(path, norm.shape)
     return resize_for_nn(norm)
+
+
+def normalise_spacing_and_preprocess(dataset, new_spacing=1):
+    """Zooms all images to make pixel spacings equal. The other group's paper
+    di this, but I'm not sure we really need to... """
+    consistently_spaced_images = [
+
+        preprocess_to_8bit(normalize_spacing(image, image_spacing))
+        for image, image_spacing
+        in zip(dataset['images_s'], dataset['spacings'])
+    ]
+
+    new_image_heights = (image.shape[0] for image in consistently_spaced_images)
+    return consistently_spaced_images, new_image_heights
+
+
+def normalize_spacing(image, spacing, desired_spacing=1):
+    zoom_factor = [spacing[2] / desired_spacing, spacing[0] / desired_spacing]
+    return zoom(image, zoom_factor)
+
+
+def handle_ydata(ydata):
+    """ct-slice-detection application expects ydata to be in this weird
+    dict format corresponding to multiple people manually finding L3,
+    so this handles that case. Numpy doesn't save dictionaries well, and
+    depending on whether you're loading the saved file vs generating it live,
+    handles it a little differently"""
+    try:
+        return ydata.tolist()['A']
+    except AttributeError:
+        return ydata['A']
+
+
+def create_sagittal_mips_from_study_images(study_images):
+    return (
+        create_sagittal_mip(image.sagittal_pixel_data())
+        for image
+        in tqdm(study_images)
+    )
+
+
+def create_sagittal_mip(sagittal_series_data):
+    return create_mip(slice_middle_images(sagittal_series_data))
+
+
+PreprocessedImage = namedtuple(
+    'PreprocessedImage', ['pixel_data', 'unpadded_height']
+)
+
+
+def preprocess_images(images, spacings):
+    for image, spacing in zip(images, spacings):
+        new_image = normalize_spacing(image, spacing)
+        new_image = preprocess_to_8bit(new_image)
+        height = new_image.shape[0]
+
+        new_image = expand_axes(new_image)
+        yield PreprocessedImage(
+            pixel_data=new_image,
+            unpadded_height=height
+        )
+
+
+def expand_axes(image):
+    result = preprocess_test_image(image)
+    return result[:, :, np.newaxis]

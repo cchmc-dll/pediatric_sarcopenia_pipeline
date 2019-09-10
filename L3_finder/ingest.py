@@ -5,14 +5,11 @@ import subprocess
 import sys
 
 import numpy as np
-from collections import namedtuple
 from pathlib import Path
-from tqdm import tqdm
 
 import pydicom
 
-from L3_finder.preprocess import create_mip_from_path, create_mip, slice_middle_images
-from util.pipelines import build_callable_that_loads_from_cache_or_runs_func, CachablePipelineStep
+from L3_finder.preprocess import create_sagittal_mips_from_study_images
 
 dcm2niix_exe = Path(os.getcwd(), 'ext', 'dcm2niix.exe')
 
@@ -30,13 +27,13 @@ class LoadL3DatasetCachableStep:
         return np.load(str(self._cached_file_path))
 
     def __call__(self):
-        return find_images_and_ydata_in_l3_finder_format(self._manifest_csv_path, self._dataset_path)
+        return find_images_and_ydata_in_l3_finder_training_format(self._manifest_csv_path, self._dataset_path)
 
     def save(self, data_for_l3_finder):
         np.savez_compressed(str(self._cached_file_path), **data_for_l3_finder)
 
 
-class StudyImage:
+class StudyImageSet:
     def __init__(self, subject_id, axial_series, axial_l3, sagittal_series, sagittal_midsag, sagittal_dir, axial_dir):
         self.subject_id = subject_id
         self.axial_series = axial_series
@@ -62,32 +59,41 @@ class StudyImage:
     def _pixel_data(self, orientation, search_pattern='*.dcm'):
         directory = getattr(self, f'{orientation}_dir')
         dcm_paths = list(directory.glob(search_pattern))
-        first_image = pydicom.dcmread(str(dcm_paths[0])).pixel_array
-        image_dimensions = first_image.shape
-        out_array = np.ndarray(
-            shape=(len(dcm_paths), image_dimensions[0], image_dimensions[1]),
-            dtype=first_image.dtype
-        )
-
-        out_array[0] = first_image
-        pixel_arrays = (pydicom.dcmread(str(path)).pixel_array for path in dcm_paths[1:])
-        for index, pixel_array in enumerate(pixel_arrays):
-            out_array[index] = pixel_array
-
-        return out_array
+        return load_pixel_data_from_paths(dcm_paths)
 
     sagittal_pixel_data = functools.partialmethod(_pixel_data, orientation='sagittal')
     axial_pixel_data = functools.partialmethod(_pixel_data, orientation='axial')
 
 
-def find_images_and_ydata_in_l3_finder_format(manifest_csv, dataset_path):
+def load_pixel_data_from_paths(dicom_paths):
+    first_dataset = pydicom.dcmread(str(dicom_paths[0]))
+    first_image = first_dataset.pixel_array
+    image_dimensions = first_image.shape
+    out_array = np.ndarray(
+        shape=(len(dicom_paths), image_dimensions[0], image_dimensions[1]),
+        dtype=first_image.dtype
+    )
+
+    # First loaded path not guaranteed first image in series
+    index = int(first_dataset.InstanceNumber) - 1
+    out_array[index] = first_image
+    datasets = (pydicom.dcmread(str(path)) for path in dicom_paths[1:])
+    for dataset in datasets:
+        index = int(dataset.InstanceNumber) - 1
+        out_array[index] = dataset.pixel_array
+    return out_array
+
+
+def find_images_and_ydata_in_l3_finder_training_format(
+        manifest_csv, dataset_path
+):
     study_images = list(find_study_images(dataset_path, manifest_csv))
     sagittal_spacings = find_sagittal_image_spacings(study_images, dataset_path)
     names = np.array([image.name for image in study_images], dtype='object')
     ydata = dict(A=find_axial_l3_offsets(study_images))  # One person picked the L3s for this image -> person A
 
     print("Creating sagittal mips...", file=sys.stderr)
-    sagittal_mips = create_sagittal_mips(study_images)
+    sagittal_mips = np.array(list(create_sagittal_mips_from_study_images(study_images)))
 
     assert len(study_images) == len(sagittal_spacings) == len(names) == len(sagittal_mips)
 
@@ -113,7 +119,7 @@ def _build_study_image(dataset_path, row):
     """
     for axial_dir in dataset_path.glob(f"*{row['subject_id']}/**/SE-{row['axial_series']}-*/"):
         for sagittal_dir in dataset_path.glob(f"*{row['subject_id']}/**/SE-{row['sagittal_series']}-*/"):
-            return StudyImage(axial_dir=axial_dir, sagittal_dir=sagittal_dir, **row)
+            return StudyImageSet(axial_dir=axial_dir, sagittal_dir=sagittal_dir, **row)
 
 
 def get_image_info_from(csv_path):
@@ -121,25 +127,6 @@ def get_image_info_from(csv_path):
         csv_reader = csv.DictReader(csv_path)
         yield from csv_reader
 
-
-def create_sagittal_mips(study_images):
-    # def convert_to_nifti(image):
-    #     output_path = Path(nifti_out_dir, f'{image.subject_id}.nii')
-    #     if output_path.exists():
-    #         print(f'{output_path.name} already exists, using existing nifti file')
-    #     else:
-    #         nifti_from_dcm_image(image, nifti_out_dir)
-    #     return output_path
-
-    # nifti_paths = map(convert_to_nifti, study_images)
-    # mips = [create_mip_from_path(p) for i, p in enumerate(nifti_paths)]
-    # return np.array(mips)
-    mips = [
-        create_mip(slice_middle_images(image.sagittal_pixel_data()))
-        for image
-        in tqdm(study_images)
-    ]
-    return np.array(mips)
 
 def nifti_from_dcm_image(study_image, nifti_out_dir):
     cmd = [str(dcm2niix_exe), '-s', 'y', '-f', study_image.subject_id, '-o', str(nifti_out_dir), str(study_image.sagittal_dir)]
@@ -149,18 +136,19 @@ def nifti_from_dcm_image(study_image, nifti_out_dir):
 def find_sagittal_image_spacings(study_images, dataset_path):
     datasets = (image.get_dicom_dataset(orientation='sagittal') for image in study_images)
 
-    def get_spacing(dataset):
-        spacings = [float(spacing) for spacing in dataset.PixelSpacing]
-
-        """
-        Repeats the y spacing for now as we haven't implemented this for frontal scans
-        which is where that might make more senese.
-        """
-        return np.array([spacings[0], spacings[1], spacings[1]], dtype=np.float32)
-        # return np.array([spacings[0], spacings[1], float(dataset.SliceThickness)], dtype=np.float32)
 
     spacings = [get_spacing(ds) for ds in datasets]
     return np.array(spacings, dtype=np.float32)
+
+
+def get_spacing(dcm_dataset):
+    spacings = [float(spacing) for spacing in dcm_dataset.PixelSpacing]
+
+    """
+    Repeats the y spacing for now as we haven't implemented this for frontal scans
+    which is where that might make more senese.
+    """
+    return np.array([spacings[0], spacings[1], spacings[1]], dtype=np.float32)
 
 
 def find_axial_l3_offsets(study_images):
@@ -176,4 +164,73 @@ def find_axial_l3_offsets(study_images):
         offsets_in_px.append(slice_index * thickness / y_spacing)
 
     return np.array(offsets_in_px, dtype=np.float32)
+
+
+class Subject:
+    def __init__(self, path):
+        self.path = path
+
+    @property
+    def id_(self):
+        return self.path.name.split('_')[-1]
+
+
+supported_orientations = {
+    (1, 0, 0, 0, 1, 0): 'axial',
+    (0, 1, 0, 0, 0, -1): 'sagittal',
+}
+
+
+def get_orientation(orientation_array):
+    rounded_orientation = [round(float(x)) for x in orientation_array]
+    return supported_orientations[tuple(rounded_orientation)]
+
+
+class ImageSeries:
+    def __init__(self, subject, series_path, accession_path):
+        self.subject = subject
+        self._series_path = series_path
+        self._accession_path = accession_path
+
+    @property
+    def pixel_data(self):
+        return load_pixel_data_from_paths(
+            dicom_paths=list(self._series_path.iterdir())
+        )
+
+    @property
+    def spacing(self):
+        return get_spacing(self._first_dcm_dataset)
+
+    @property
+    def orientation(self):
+        return get_orientation(self._first_dcm_dataset.ImageOrientationPatient)
+
+    @property
+    def _first_dcm_dataset(self):
+        return pydicom.read_file(str(next(self._series_path.iterdir())))
+
+    @property
+    def slice_thickness(self):
+        return float(self._first_dcm_dataset.SliceThickness)
+
+    def image_at_pos_in_px(self, pos):
+        index = int(round(pos / self.slice_thickness))
+        return self.pixel_data[index]
+
+
+def find_subjects(dataset_dir):
+    for subject_path in Path(dataset_dir).iterdir():
+        yield Subject(path=subject_path)
+
+
+def find_series(subject):
+    for accession_path in subject.path.iterdir():
+        for series_path in accession_path.iterdir():
+            yield ImageSeries(
+                subject=subject,
+                series_path=series_path,
+                accession_path=accession_path
+            )
+
 

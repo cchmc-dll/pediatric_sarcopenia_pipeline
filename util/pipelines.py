@@ -13,12 +13,12 @@ class CachablePipelineStep:
 
 
 def build_callable_that_loads_from_cache_or_runs_step(use_cache: bool, pipeline_step):
-    def new_callable():
+    def new_callable(*args, **kwargs):
         if use_cache:
             try:
                 return pipeline_step.load()
             except FileNotFoundError:
-                results = pipeline_step()
+                results = pipeline_step(*args, **kwargs)
                 pipeline_step.save(results)
                 return results
 

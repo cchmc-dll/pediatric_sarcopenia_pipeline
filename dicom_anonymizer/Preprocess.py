@@ -7,7 +7,7 @@ from os.path import isfile, join, isdir
 
 import pydicom as dicom
 
-from L3_finder.images import dcm2niix_exe
+from L3_finder.ingest import dcm2niix_exe
 from dicom_anonymizer.anonymize_dicom_Airway import anonymize_dicom
 import subprocess
 import os
