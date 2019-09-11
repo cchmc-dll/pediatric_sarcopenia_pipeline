@@ -18,16 +18,8 @@ def parse_args():
              'script '
     )
     parser.add_argument(
-        'dataset_manifest_path',
-        help='CSV outlining which series and slices for a subject id'
-    )
-    parser.add_argument(
         'model_path',
         help='Path to .h5 model'
-    )
-    parser.add_argument(
-        'dataset_cache_path',
-        help='.npz path where intermediate dataset can be stored'
     )
 
     return parser.parse_args()
@@ -85,13 +77,13 @@ def build_l3_images(axial_series, sagittal_series, prediction_results):
         rightkey=lambda sag_with_res: sag_with_res[0].subject.id_,
         rightseq=sagittals_with_results
     )
-    l3_images = [
+    l3_images = (
         L3Image(
             sagittal_series=sag,
             axial_series=ax,
             prediction_result=result)
         for ax, (sag, result) in axials_with_sagittals_and_results
-    ]
+    )
     return l3_images
 
 

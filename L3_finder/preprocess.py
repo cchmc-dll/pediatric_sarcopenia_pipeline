@@ -3,9 +3,7 @@ from collections import namedtuple
 import SimpleITK as sitk
 import cv2
 import numpy as np
-import toolz
 from scipy.ndimage import zoom
-from tqdm import tqdm
 
 from ct_slice_detection.io.preprocessing import preprocess_to_8bit
 from ct_slice_detection.utils.testing_utils import preprocess_test_image
@@ -91,14 +89,6 @@ def handle_ydata(ydata):
         return ydata.tolist()['A']
     except AttributeError:
         return ydata['A']
-
-
-def create_sagittal_mips_from_study_images(study_images):
-    return (
-        create_sagittal_mip(image.sagittal_pixel_data())
-        for image
-        in tqdm(study_images)
-    )
 
 
 def create_sagittal_mip(sagittal_series_data):

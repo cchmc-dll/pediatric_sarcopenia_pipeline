@@ -8,8 +8,9 @@ import numpy as np
 from pathlib import Path
 
 import pydicom
+from tqdm import tqdm
 
-from L3_finder.preprocess import create_sagittal_mips_from_study_images
+from L3_finder.preprocess import create_sagittal_mip
 
 dcm2niix_exe = Path(os.getcwd(), 'ext', 'dcm2niix.exe')
 
@@ -59,28 +60,44 @@ class StudyImageSet:
     def _pixel_data(self, orientation, search_pattern='*.dcm'):
         directory = getattr(self, f'{orientation}_dir')
         dcm_paths = list(directory.glob(search_pattern))
-        return load_pixel_data_from_paths(dcm_paths)
+        try:
+            return load_pixel_data_from_paths(dcm_paths)
+        except IndexError as e:
+            raise MissingImage(
+                "Image missing for subject: {subject}, error msg: {err}".format(
+                    subject=self.subject_id,
+                    err=str(e)
+                )
+            ) from e
 
     sagittal_pixel_data = functools.partialmethod(_pixel_data, orientation='sagittal')
     axial_pixel_data = functools.partialmethod(_pixel_data, orientation='axial')
 
 
+class MissingImage(RuntimeError):
+    pass
+
+
 def load_pixel_data_from_paths(dicom_paths):
+    """ Calculates"""
     first_dataset = pydicom.dcmread(str(dicom_paths[0]))
     first_image = first_dataset.pixel_array
     image_dimensions = first_image.shape
-    out_array = np.ndarray(
+    out_array = np.zeros(
         shape=(len(dicom_paths), image_dimensions[0], image_dimensions[1]),
         dtype=first_image.dtype
     )
 
     # First loaded path not guaranteed first image in series
     index = int(first_dataset.InstanceNumber) - 1
-    out_array[index] = first_image
-    datasets = (pydicom.dcmread(str(path)) for path in dicom_paths[1:])
-    for dataset in datasets:
-        index = int(dataset.InstanceNumber) - 1
-        out_array[index] = dataset.pixel_array
+    try:
+        out_array[index] = first_image
+        datasets = (pydicom.dcmread(str(path)) for path in dicom_paths[1:])
+        for dataset in datasets:
+            index = int(dataset.InstanceNumber) - 1
+            out_array[index] = dataset.pixel_array
+    except IndexError:
+        out_array = np.resize(out_array, (index + 1, image_dimensions[0], image_dimensions[1]))
     return out_array
 
 
@@ -93,7 +110,8 @@ def find_images_and_ydata_in_l3_finder_training_format(
     ydata = dict(A=find_axial_l3_offsets(study_images))  # One person picked the L3s for this image -> person A
 
     print("Creating sagittal mips...", file=sys.stderr)
-    sagittal_mips = np.array(list(create_sagittal_mips_from_study_images(study_images)))
+    sagittal_mips, invalid_images = create_sagittal_mips_from_study_images(study_images)
+    sagittal_mips = np.array(sagittal_mips)
 
     assert len(study_images) == len(sagittal_spacings) == len(names) == len(sagittal_mips)
 
@@ -177,7 +195,11 @@ class Subject:
 
 supported_orientations = {
     (1, 0, 0, 0, 1, 0): 'axial',
+    (-1, 0, 0, 0, -1, 0): 'axial',
+    (0, 1, 0, -1, 0, 0): 'axial',
     (0, 1, 0, 0, 0, -1): 'sagittal',
+    (-1, 0, 0, 0, 0, -1): 'sagittal',
+    (1, 0, 0, 0, 0, -1): 'coronal',
 }
 
 
@@ -204,11 +226,25 @@ class ImageSeries:
 
     @property
     def orientation(self):
-        return get_orientation(self._first_dcm_dataset.ImageOrientationPatient)
+        try:
+            return get_orientation(self._first_dcm_dataset.ImageOrientationPatient)
+        except KeyError as e:
+            print(
+                "Unknown orientation for for subject: {}. Image Path: {}".format(
+                    self.subject.id_,
+                    self._first_dcm_path
+                ),
+                file=sys.stderr
+            )
+            raise e
 
     @property
     def _first_dcm_dataset(self):
-        return pydicom.read_file(str(next(self._series_path.iterdir())))
+        return pydicom.read_file(self._first_dcm_path)
+
+    @property
+    def _first_dcm_path(self):
+        return str(next(self._series_path.iterdir()).as_posix())
 
     @property
     def slice_thickness(self):
@@ -234,3 +270,15 @@ def find_series(subject):
             )
 
 
+def create_sagittal_mips_from_study_images(study_images):
+    invalid_images = []
+    mips = []
+    for image in tqdm(study_images):
+        try:
+            mips.append(create_sagittal_mip(image.sagittal_pixel_data()))
+        except MissingImage as e:
+            invalid_images.append(study_images)
+            tqdm.write(e)
+            invalid_images.append(study_images)
+
+    return mips, invalid_images
