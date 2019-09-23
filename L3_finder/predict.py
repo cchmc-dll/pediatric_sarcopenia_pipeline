@@ -56,7 +56,7 @@ def draw_line_on_predicted_image(prediction, unpadded_image, console):
     rr, cc, val = line_aa(
         r0=prediction.predicted_y_in_px,
         c0=0,
-        r1=prediction.predicted_y_in_px,
+        r1=prediction.predicted_y_in_px + 1,
         c1=unpadded_image.shape[2] - 1
     )
     output = unpadded_image.reshape(

@@ -193,7 +193,7 @@ class Subject:
         return self.path.name.split('_')[-1]
 
 
-supported_orientations = {
+KNOWN_ORIENTATIONS = {
     (1, 0, 0, 0, 1, 0): 'axial',
     (-1, 0, 0, 0, -1, 0): 'axial',
     (0, 1, 0, -1, 0, 0): 'axial',
@@ -205,7 +205,7 @@ supported_orientations = {
 
 def get_orientation(orientation_array):
     rounded_orientation = [round(float(x)) for x in orientation_array]
-    return supported_orientations[tuple(rounded_orientation)]
+    return KNOWN_ORIENTATIONS[tuple(rounded_orientation)]
 
 
 class ImageSeries:
