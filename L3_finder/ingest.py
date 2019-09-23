@@ -251,8 +251,10 @@ class ImageSeries:
         return float(self._first_dcm_dataset.SliceThickness)
 
     def image_at_pos_in_px(self, pos):
-        index = int(round(pos / self.slice_thickness))
-        return self.pixel_data[index]
+        return self.pixel_data[self.image_index_at_pos(pos)]
+    
+    def image_index_at_pos(self, pos):
+        return int(round(pos / self.slice_thickness))
 
 
 def find_subjects(dataset_dir):

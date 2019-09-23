@@ -4,7 +4,7 @@ from argparse import ArgumentParser
 import toolz
 
 from L3_finder.ingest import find_subjects, find_series
-from L3_finder.output import output_l3_images_to_h5
+from L3_finder.output import output_l3_images_to_h5, output_images
 from L3_finder.predict import make_predictions_for_images
 from L3_finder.preprocess import create_sagittal_mip, preprocess_images
 
@@ -25,9 +25,29 @@ def parse_args():
     )
 
     parser.add_argument(
-        '--output_file_path',
+        '--output_directory',
         required=True,
-        help='Path to h5 file where image data will be saved'
+        help='Path to directory where output files will be saved. Will be '
+             'created if it does not exist '
+    )
+
+    parser.add_argument(
+        '--show_plots',
+        action='store_true',
+        help='Path to directory where output files will be saved'
+    )
+
+    parser.add_argument(
+        '--overwrite',
+        action='store_true',
+        help='Overwrite files within target folder'
+    )
+
+    parser.add_argument(
+        '--save_plots',
+        action='store_true',
+        help='If true, will save side-by-side plot of predicted L3 and the '
+             'axial slice at that level '
     )
 
     return parser.parse_args()
@@ -38,7 +58,15 @@ def main():
 
     l3_images = find_l3_images(args)
 
-    output_l3_images_to_h5(l3_images, h5_file_path=args.output_file_path)
+    output_images(
+        l3_images,
+        args=dict(
+            output_directory=args.output_directory,
+            should_plot=args.show_plots,
+            should_overwrite=args.overwrite,
+            should_save_plots=args.save_plots
+        )
+    )
 
 
 def find_l3_images(args):
@@ -96,6 +124,16 @@ class L3Image(object):
     @property
     def pixel_data(self):
         return self.axial_series.image_at_pos_in_px(
+            self.prediction_result.prediction.predicted_y_in_px
+        )
+
+    @property
+    def subject_id(self):
+        return self.axial_series.subject.id_
+
+    @property
+    def prediction_index(self):
+        return self.axial_series.image_index_at_pos(
             self.prediction_result.prediction.predicted_y_in_px
         )
 

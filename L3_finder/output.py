@@ -1,0 +1,165 @@
+import functools
+from pathlib import Path
+
+import numpy as np
+import toolz
+from matplotlib import pyplot as plt
+from skimage.io import imsave
+from tables import open_file
+
+
+def output_images(l3_images, args):
+
+    output_pipeline = make_output_pipeline(args)
+
+    for l3_image in l3_images:
+        toolz.pipe(l3_image, *output_pipeline)
+
+
+def _ensure_output_dir_exists(output_dir):
+    return Path(output_dir).mkdir(exist_ok=True)
+
+
+def _ensure_images_dir_exists(output_dir):
+    images_dir_path = Path(output_dir, 'images')
+    images_dir_path.mkdir(exist_ok=True)
+    return images_dir_path
+
+
+def make_output_pipeline(args):
+    _ensure_output_dir_exists(args['output_directory'])
+    images_dir_path = _ensure_images_dir_exists(args['output_directory'])
+
+    pipeline = [
+        make_save_l3_to_png_step(
+            base_dir=images_dir_path,
+            should_overwrite=args['should_overwrite']
+        )
+    ]
+
+    if args['should_plot'] or args['should_save_plots']:
+        pipeline.append(
+            functools.partial(plot_l3_image, output_args=args)
+        )
+
+    return pipeline
+
+
+def make_save_l3_to_png_step(base_dir, should_overwrite):
+    def save_l3_image_to_png_step(l3_image):
+        image_dir = _create_directory_for_l3_image(
+            base_dir, l3_image, should_overwrite
+        )
+        return _save_l3_image_to_png(image_dir, l3_image, should_overwrite)
+
+    return save_l3_image_to_png_step
+
+
+def _create_directory_for_l3_image(base_dir, l3_image, should_overwrite):
+    image_dir = Path(base_dir, str(l3_image.subject_id))
+    image_dir.mkdir(exist_ok=should_overwrite)  # don't overwrite for now
+    return image_dir
+
+
+def _save_l3_image_to_png(image_dir, l3_image, should_overwrite):
+    file_name = 'subject_{subject_id}_IM-CT-{image_number}.png'.format(
+        subject_id=l3_image.subject_id,
+        image_number=l3_image.prediction_index
+    )
+    save_path = Path(image_dir, file_name)
+
+    if not should_overwrite and save_path.exists():
+        raise FileExistsError(save_path)
+
+    imsave(str(save_path), l3_image.pixel_data)
+
+    return l3_image
+
+
+# Potentially will go unused
+def output_l3_images_to_h5(l3_images, h5_file_path):
+    expanded_path = Path(h5_file_path).expanduser()
+
+    with open_file(expanded_path, mode='w') as h5_file:
+
+        first_l3_image = next(l3_images)
+        imdata_array = h5_file.create_earray(
+            where=h5_file.root,
+            name='imdata',
+            obj=np.expand_dims(first_l3_image.pixel_data, axis=0)
+        )
+        plot_l3_image(first_l3_image)
+        subject_ids = [first_l3_image.axial_series.subject.id_]
+
+        for l3_image in l3_images:
+            plot_l3_image(l3_image)
+            imdata_array.append(np.expand_dims(l3_image.pixel_data, axis=0))
+            # terrible, but I'm really fighting against PyTables here...
+            subject_ids.append(l3_image.axial_series.subject.id_)
+
+        h5_file.create_array(
+            where=h5_file.root, name='subject_ids', obj=subject_ids
+        )
+
+
+def plot_l3_image(l3_image, output_args):
+    try:
+        _generate_l3_image_figure(l3_image)
+    except IndexError:
+        _generate_l3_prediction_out_of_bounds_figure(l3_image)
+    finally:
+        if output_args['should_save_plots']:
+            save_plot(
+                image=l3_image,
+                output_directory=output_args['output_directory'],
+                should_overwrite=output_args['should_overwrite']
+            )
+
+        if output_args['should_plot']:
+            plt.show()
+
+        plt.close()
+        return l3_image
+
+
+def _generate_l3_image_figure(l3_image):
+    f, axarr = plt.subplots(1, 2)
+    axarr[0].imshow(l3_image.pixel_data, cmap='bone')
+    axarr[1].imshow(l3_image.prediction_result.display_image, cmap='bone')
+    plt.title(_in_bounds_title(l3_image))
+    return f, axarr
+
+
+def _generate_l3_prediction_out_of_bounds_figure(l3_image):
+    print(
+        "Prediction: {predicted_y}cm is out of bounds of image for "
+        "subject_id: {id_}".format(
+            predicted_y=l3_image.prediction_result.prediction.predicted_y_in_px,
+            id_=l3_image.axial_series.subject.id_
+        )
+    )
+    plt.title(_out_of_bounds_title(l3_image))
+    plt.imshow(l3_image.prediction_result.display_image)
+
+
+def _in_bounds_title(image):
+    return 'Subject: {} - Prediction: {}'.format(
+        image.subject_id, image.prediction_index
+    )
+
+
+def _out_of_bounds_title(image):
+    return 'Subject: {} out of bounds prediction: {}'.format(
+        image.subject_id, image.prediction_index
+    )
+
+
+def save_plot(image, output_directory, should_overwrite):
+    plots_dir = Path(output_directory, 'plots')
+    plots_dir.mkdir(exist_ok=should_overwrite)
+
+    file_name = '{}-plot.png'.format(image.subject_id)
+    plt.savefig(str(plots_dir.joinpath(file_name)))
+
+
+
