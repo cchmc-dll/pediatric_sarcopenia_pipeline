@@ -1,3 +1,4 @@
+import csv
 import functools
 from pathlib import Path
 
@@ -10,10 +11,36 @@ from tables import open_file
 
 def output_images(l3_images, args):
 
-    output_pipeline = make_output_pipeline(args)
+    _ensure_output_dir_exists(args['output_directory'])
+    images_dir_path = _ensure_images_dir_exists(args['output_directory'])
+    csv_path = Path(args['output_directory'], 'l3_prediction_results.csv')
+
+    _write_prediction_csv_header(csv_path, should_overwrite=args['should_overwrite'])
+
+    output_pipeline = make_output_pipeline(
+        args=args, images_dir_path=images_dir_path, csv_path=csv_path
+    )
 
     for l3_image in l3_images:
         toolz.pipe(l3_image, *output_pipeline)
+
+
+def make_output_pipeline(args, images_dir_path, csv_path):
+    pipeline = [
+        functools.partial(
+            save_l3_image_to_png,
+            base_dir=images_dir_path,
+            should_overwrite=args['should_overwrite']
+        ),
+        functools.partial(save_prediction_results_to_csv, csv_path=csv_path)
+    ]
+
+    if args['should_plot'] or args['should_save_plots']:
+        pipeline.append(
+            functools.partial(plot_l3_image, output_args=args)
+        )
+
+    return pipeline
 
 
 def _ensure_output_dir_exists(output_dir):
@@ -26,24 +53,21 @@ def _ensure_images_dir_exists(output_dir):
     return images_dir_path
 
 
-def make_output_pipeline(args):
-    _ensure_output_dir_exists(args['output_directory'])
-    images_dir_path = _ensure_images_dir_exists(args['output_directory'])
+def _write_prediction_csv_header(csv_path, should_overwrite):
+    if not should_overwrite and csv_path.exists():
+        raise FileExistsError(csv_path)
 
-    pipeline = [
-        functools.partial(
-            save_l3_image_to_png,
-            base_dir=images_dir_path,
-            should_overwrite=args['should_overwrite']
+    with open(csv_path, 'w') as f:
+        writer = csv.writer(f)
+        writer.writerow(
+            [
+                'subject_id',
+                'predicted_y_in_px',
+                'probability',
+                'sagittal_series_path',
+                'axial_series_path',
+             ]
         )
-    ]
-
-    if args['should_plot'] or args['should_save_plots']:
-        pipeline.append(
-            functools.partial(plot_l3_image, output_args=args)
-        )
-
-    return pipeline
 
 
 def save_l3_image_to_png(l3_image, base_dir, should_overwrite):
@@ -126,7 +150,7 @@ def _generate_l3_prediction_out_of_bounds_figure(l3_image):
 
 
 def _in_bounds_title(image):
-    return 'Subject: {} - Prediction: {}'.format(
+    return 'Subject: {} - Predicted slice: {}'.format(
         image.subject_id, image.prediction_index
     )
 
@@ -143,6 +167,14 @@ def save_plot(image, output_directory, should_overwrite):
 
     file_name = '{}-plot.png'.format(image.subject_id)
     plt.savefig(str(plots_dir.joinpath(file_name)))
+
+
+def save_prediction_results_to_csv(l3_image, csv_path):
+    with open(csv_path, 'a') as f:
+        writer = csv.writer(f)
+        writer.writerow(l3_image.as_csv_row())
+
+    return l3_image
 
 
 # Potentially will go unused

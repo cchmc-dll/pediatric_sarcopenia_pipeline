@@ -211,13 +211,13 @@ def get_orientation(orientation_array):
 class ImageSeries:
     def __init__(self, subject, series_path, accession_path):
         self.subject = subject
-        self._series_path = series_path
-        self._accession_path = accession_path
+        self.series_path = series_path
+        self.accession_path = accession_path
 
     @property
     def pixel_data(self):
         return load_pixel_data_from_paths(
-            dicom_paths=list(self._series_path.iterdir())
+            dicom_paths=list(self.series_path.iterdir())
         )
 
     @property
@@ -244,7 +244,7 @@ class ImageSeries:
 
     @property
     def _first_dcm_path(self):
-        return str(next(self._series_path.iterdir()).as_posix())
+        return str(next(self.series_path.iterdir()).as_posix())
 
     @property
     def slice_thickness(self):

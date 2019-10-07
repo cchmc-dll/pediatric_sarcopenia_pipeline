@@ -102,4 +102,7 @@ The orientations of the images are determined from the dicoms themeselves.
 Right now, I've only tested with 1 sagittal and 1 axial image series in each accession,
 though it might work with more than one.
 
-The output directory should end up with an images folder, and optionally a plots folder.
+The output directory should end up with an images folder and csv of the prediction 
+results (at l3_prediction_results.csv), and optionally a plots folder.
+
+The program can also show the plots immediately if you'd like.

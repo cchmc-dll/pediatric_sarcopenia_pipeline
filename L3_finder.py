@@ -1,4 +1,5 @@
 import itertools
+
 from argparse import ArgumentParser
 
 import toolz
@@ -139,6 +140,16 @@ class L3Image(object):
         return self.axial_series.image_index_at_pos(
             self.prediction_result.prediction.predicted_y_in_px
         )
+
+    def as_csv_row(self):
+        prediction = self.prediction_result.prediction
+        return [
+            self.subject_id,
+            prediction.predicted_y_in_px,
+            prediction.probability,
+            self.sagittal_series.series_path,
+            self.axial_series.series_path,
+        ]
 
 
 if __name__ == "__main__":
