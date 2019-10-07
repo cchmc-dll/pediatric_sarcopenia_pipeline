@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import toolz
 from matplotlib import pyplot as plt
-from skimage.io import imsave
+from imageio import imsave
 from tables import open_file
 
 
@@ -71,9 +71,20 @@ def _save_l3_image_to_png(image_dir, l3_image, should_overwrite):
     if not should_overwrite and save_path.exists():
         raise FileExistsError(save_path)
 
-    imsave(str(save_path), l3_image.pixel_data)
+    imsave(str(save_path), _make_image_uint16(l3_image.pixel_data))
 
     return l3_image
+
+
+def _make_image_uint16(old_image):
+    img_min = old_image.min()
+    img_max = old_image.max()
+
+    # Make sure we don't overflow
+    assert img_max + (-img_min) < 65536
+
+    new_image = old_image - old_image.min()
+    return new_image.astype(np.uint16)
 
 
 # Potentially will go unused
