@@ -16,12 +16,15 @@ def parse_args():
         '--dicom_dir',
         required=True,
         help='Root directory containing dicoms in format output by Tim\'s '
-             'script '
+             'script. That is subject_1/accession_xyz/series{sagittal & '
+             'axial}. The accession directory should contain both a sagittal '
+             'image series and an axial image series. '
     )
     parser.add_argument(
         '--model_path',
         required=True,
-        help='Path to .h5 model'
+        help='Path to .h5 model trained using '
+             'https://github.com/fk128/ct-slice-detection Unet model. '
     )
 
     parser.add_argument(
