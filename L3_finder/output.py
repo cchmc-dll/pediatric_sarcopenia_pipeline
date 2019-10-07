@@ -31,7 +31,8 @@ def make_output_pipeline(args):
     images_dir_path = _ensure_images_dir_exists(args['output_directory'])
 
     pipeline = [
-        make_save_l3_to_png_step(
+        functools.partial(
+            save_l3_image_to_png,
             base_dir=images_dir_path,
             should_overwrite=args['should_overwrite']
         )
@@ -45,14 +46,11 @@ def make_output_pipeline(args):
     return pipeline
 
 
-def make_save_l3_to_png_step(base_dir, should_overwrite):
-    def save_l3_image_to_png_step(l3_image):
-        image_dir = _create_directory_for_l3_image(
-            base_dir, l3_image, should_overwrite
-        )
-        return _save_l3_image_to_png(image_dir, l3_image, should_overwrite)
-
-    return save_l3_image_to_png_step
+def save_l3_image_to_png(l3_image, base_dir, should_overwrite):
+    image_dir = _create_directory_for_l3_image(
+        base_dir, l3_image, should_overwrite
+    )
+    return _save_l3_image_to_png(image_dir, l3_image, should_overwrite)
 
 
 def _create_directory_for_l3_image(base_dir, l3_image, should_overwrite):
@@ -85,32 +83,6 @@ def _make_image_uint16(old_image):
 
     new_image = old_image - old_image.min()
     return new_image.astype(np.uint16)
-
-
-# Potentially will go unused
-def output_l3_images_to_h5(l3_images, h5_file_path):
-    expanded_path = Path(h5_file_path).expanduser()
-
-    with open_file(expanded_path, mode='w') as h5_file:
-
-        first_l3_image = next(l3_images)
-        imdata_array = h5_file.create_earray(
-            where=h5_file.root,
-            name='imdata',
-            obj=np.expand_dims(first_l3_image.pixel_data, axis=0)
-        )
-        plot_l3_image(first_l3_image)
-        subject_ids = [first_l3_image.axial_series.subject.id_]
-
-        for l3_image in l3_images:
-            plot_l3_image(l3_image)
-            imdata_array.append(np.expand_dims(l3_image.pixel_data, axis=0))
-            # terrible, but I'm really fighting against PyTables here...
-            subject_ids.append(l3_image.axial_series.subject.id_)
-
-        h5_file.create_array(
-            where=h5_file.root, name='subject_ids', obj=subject_ids
-        )
 
 
 def plot_l3_image(l3_image, output_args):
@@ -172,5 +144,30 @@ def save_plot(image, output_directory, should_overwrite):
     file_name = '{}-plot.png'.format(image.subject_id)
     plt.savefig(str(plots_dir.joinpath(file_name)))
 
+
+# Potentially will go unused
+def output_l3_images_to_h5(l3_images, h5_file_path):
+    expanded_path = Path(h5_file_path).expanduser()
+
+    with open_file(expanded_path, mode='w') as h5_file:
+
+        first_l3_image = next(l3_images)
+        imdata_array = h5_file.create_earray(
+            where=h5_file.root,
+            name='imdata',
+            obj=np.expand_dims(first_l3_image.pixel_data, axis=0)
+        )
+        plot_l3_image(first_l3_image)
+        subject_ids = [first_l3_image.axial_series.subject.id_]
+
+        for l3_image in l3_images:
+            plot_l3_image(l3_image)
+            imdata_array.append(np.expand_dims(l3_image.pixel_data, axis=0))
+            # terrible, but I'm really fighting against PyTables here...
+            subject_ids.append(l3_image.axial_series.subject.id_)
+
+        h5_file.create_array(
+            where=h5_file.root, name='subject_ids', obj=subject_ids
+        )
 
 
