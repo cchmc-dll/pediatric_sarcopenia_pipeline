@@ -1,7 +1,8 @@
 import os
-from argparse import ArgumentParser
+from argparse import ArgumentParser, FileType
 from collections import namedtuple
 from pathlib import Path
+import pickle
 
 import numpy as np
 import tables
@@ -10,7 +11,9 @@ from sklearn.model_selection import KFold, train_test_split
 
 from unet3d.utils import pickle_dump
 
+
 ThreewayKFold = namedtuple('ThreewayKFold', 'train_indices val_indices test_indices xs ys subject_ids')
+TrainTestSplit = namedtuple('TrainTestSplit', 'training_xs_to_kfold test_set training_indices_to_kfold test_indices')
 
 
 def main():
@@ -21,10 +24,15 @@ def main():
         ys = np.array(data_file.root.truth)
         subject_ids = np.array(data_file.root.subject_ids)
 
+    train_test_split = get_training_and_test_split(
+        xs=xs,
+        existing_test_set_file=args.existing_test_set_file,
+    )
+
     kfold = augment_if_desired(
-        kfold=get_kfold(xs, ys, subject_ids),
+        kfold=get_kfold(xs, ys, subject_ids, train_test_split),
         should_augment=args.augment,
-        samples_per_image=args.samples_per_image
+        samples_per_image=args.samples_per_image,
     )
 
     if args.augment:
@@ -46,27 +54,61 @@ def parse_args():
     parser.add_argument('output_dir', help='Directory where dir of kfold files will be created')
     parser.add_argument('--augment', action='store_true')
     parser.add_argument('--samples_per_image', default=10, type=int, help='Number of samples of each image to take with augmentation')
+    parser.add_argument('--existing_test_set_file', type=FileType('rb'), help="Path to .pkl file with existing test set to reuse")
 
     return parser.parse_args()
 
 
-def get_kfold(xs, ys, subject_ids):
+def get_training_and_test_split(xs, existing_test_set_file, test_size=0.2):
+    indices = np.arange(len(xs))
+
+    if existing_test_set_file:
+        existing_test_indices = pickle.load(existing_test_set_file)
+
+        return TrainTestSplit(
+            training_xs_to_kfold=np.delete(arr=xs, obj=existing_test_indices, axis=0),
+            test_set=xs[existing_test_indices],
+            training_indices_to_kfold=np.delete(arr=indices, obj=existing_test_indices),
+            test_indices=existing_test_indices
+        )
+    else:
+        return TrainTestSplit(*train_test_split(xs, indices, test_size=0.2))
+
+
+def get_kfold(xs, ys, subject_ids, train_test_split):
+    assert (
+        len(xs)
+        == len(ys)
+        == (len(train_test_split.training_indices_to_kfold) + len(train_test_split.test_indices))
+    )
+
     sets_of_training_train_indices = []
     sets_of_training_val_indices = []
-    sets_of_test_indices = []
+    repeated_set_of_test_indices = []
+
+    # indices = np.arange(len(xs))
+
+    # training_xs_to_kfold, test_set, training_indices_to_kfold, test_indices = train_test_split(
+        # xs, indices, test_size=0.2
+    # )
+    training_ys_to_kfold = ys[train_test_split.training_indices_to_kfold]
 
     kf = KFold(n_splits=5, shuffle=True)
-    for train_indices, test_indices in kf.split(xs, ys):
-        train_train_indices, train_val_indices = train_test_split(train_indices, test_size=0.1)
-
-        sets_of_training_train_indices.append(train_train_indices)
-        sets_of_training_val_indices.append(train_val_indices)
-        sets_of_test_indices.append(test_indices)
+    for fold_train_indices, fold_val_indices in kf.split(train_test_split.training_xs_to_kfold, training_ys_to_kfold):
+        # kf.split gets the indices into the training data array for train and
+        # val. We need the indices into the actual dataset, so that's why this
+        # selects the values from the training_indices_to_kfold array.
+        sets_of_training_train_indices.append(train_test_split.training_indices_to_kfold[fold_train_indices])
+        sets_of_training_val_indices.append(train_test_split.training_indices_to_kfold[fold_val_indices])
+        # Appends the same test set over and over b/c already written code
+        # expects different test sets each time (this was the mistake I made
+        # because I didn't know you were supposed to hold a single test set)
+        repeated_set_of_test_indices.append(train_test_split.test_indices)
 
     return ThreewayKFold(
         sets_of_training_train_indices,
         sets_of_training_val_indices,
-        sets_of_test_indices,
+        repeated_set_of_test_indices,
         xs,
         ys,
         subject_ids
