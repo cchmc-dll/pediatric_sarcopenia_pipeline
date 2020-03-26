@@ -1,3 +1,4 @@
+from functools import wraps
 from typing import Callable
 
 
@@ -63,6 +64,22 @@ def build_callable_that_loads_from_cache_or_runs_func(
             return main_function(*args, **kwargs)
     return new_callable
 
+
+def load_from_cache_or_run(load_function, save_function, use_cache=True):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            if use_cache:
+                try:
+                    return load_function()
+                except FileNotFoundError:
+                    results = func(*args, **kwargs)
+                    save_function(results)
+                    return results
+            else:
+                return func(*args, **kwargs)
+        return wrapper
+    return decorator
 
 pipeline_example = build_callable_that_loads_from_cache_or_runs_func(
     use_cache=True,

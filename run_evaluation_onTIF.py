@@ -33,7 +33,25 @@ def read_excel(filename,sheet):
     df = pd.read_excel(io=file_name, sheet_name=sheet)
     return(df)
 
+
 def main():
+    args = parse_command_line_arguments()
+    run_evaluation(config=vars(args))
+
+
+def parse_command_line_arguments():
+    parser = ArgumentParser(fromfile_prefix_chars='@')
+    req_group = parser.add_argument_group(title='Required flags')
+    req_group.add_argument('--input_dir', required=True, help='Directory of image predictions')
+    req_group.add_argument('--output_file', required=True, help='name of csv file which will be created in prediction dir')
+
+    parser.add_argument('--truth_img', default='truth', help='name of the truth images')
+    parser.add_argument('--prediction_img', default='prediction', help='name of table in h5 file with predictions')
+
+    return parser.parse_args()
+
+
+def run_evaluation(config):
     header = ("DSC",)
     masking_functions = (get_mask,)
     rows = list()
@@ -48,7 +66,7 @@ def main():
         prediction = io.imread(prediction_file)
         rows.append([dice_coefficient(func(truth), func(prediction))for func in masking_functions])
 
-    
+
     df = pd.DataFrame.from_records(rows, columns=header, index=subject_ids)
     print('Index of df:', df.index,'\t', df['DSC'], '\n \n')
     print('Mean: ', np.mean(df['DSC']))
@@ -56,7 +74,7 @@ def main():
     print('Min: ', np.min(df['DSC']))
     print('Max: ', np.max(df['DSC']))
 
- 
+
     df.to_csv(config['input_dir'] + '/' + config['output_file'])
 
     scores = dict()

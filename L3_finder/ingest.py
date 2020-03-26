@@ -10,12 +10,11 @@ from pathlib import Path
 import pydicom
 from tqdm import tqdm
 
-from L3_finder.preprocess import create_sagittal_mip
 
 dcm2niix_exe = Path(os.getcwd(), 'ext', 'dcm2niix.exe')
 
 
-class LoadL3DatasetCachableStep:
+class FormatL3DatasetStep:
     def __init__(self, cached_file_path, manifest_csv_path, dataset_path):
         self._cached_file_path = cached_file_path
         self._manifest_csv_path = manifest_csv_path
@@ -231,7 +230,18 @@ class ImageSeries:
 
     @property
     def spacing(self):
+        """pseudo spacing with y replaced for the L3 finder"""
         return get_spacing(self._first_dcm_dataset)
+
+    @property
+    def true_spacing(self):
+        """actual spacing array for axial sma calculation"""
+        return [float(spacing) for spacing in self._first_dcm_dataset.PixelSpacing]
+
+    @property
+    def resolution(self):
+        ds = self._first_dcm_dataset
+        return (ds.Rows, ds.Columns)
 
     @property
     def orientation(self):
@@ -261,7 +271,7 @@ class ImageSeries:
 
     def image_at_pos_in_px(self, pos):
         return self.pixel_data[self.image_index_at_pos(pos)]
-    
+
     def image_index_at_pos(self, pos):
         return int(round(pos / self.slice_thickness))
 
@@ -282,6 +292,8 @@ def find_series(subject):
 
 
 def create_sagittal_mips_from_study_images(study_images):
+    # done here so you can require this module w/o loading tensorflow
+    from L3_finder.preprocess import create_sagittal_mip
     invalid_images = []
     mips = []
     for image in tqdm(study_images):
