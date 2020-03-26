@@ -5,8 +5,7 @@ from argparse import ArgumentParser
 
 def main():
     args = parse_args()
-    df = pd.read_excel(args.input_file)
-
+    df = pd.read_excel(args.input_file, sheet_name=args.sheet)
     df[args.new_col_name] = df.apply(convert_date, axis=1)
 
     df.to_excel(args.out_file_path)
@@ -16,7 +15,6 @@ def parse_args():
     parser = ArgumentParser()
 
     parser.add_argument('input_file', help='Excel to convert date string for')
-    parser.add_argument('sheet', help='Excel Sheet name where column found')
     parser.add_argument('column', help='Column to convert')
     parser.add_argument('out_file_path', help='Output file path')
     parser.add_argument(
@@ -25,6 +23,7 @@ def parse_args():
         help='What to name the new column with the new date',
         required=False
     )
+    parser.add_argument('--sheet', default=0, help='Excel Sheet name where column found')
 
     return parser.parse_args()
 

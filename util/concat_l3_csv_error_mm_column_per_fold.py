@@ -20,7 +20,7 @@ def main(argv):
     fold_results = []
     for subject_id, rows in groupby('', csv_rows).items():
         new_row = [subject_id]
-        errors = [r['error_mm'] for r in rows]
+        errors = [r['DSC'] for r in rows]
         new_row.extend(errors)
         error_avg = mean([Decimal(e) for e in errors])
         new_row.append("{0:.3f}".format(error_avg))
