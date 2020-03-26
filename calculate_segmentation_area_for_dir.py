@@ -62,7 +62,13 @@ def calculate_sma(args):
 def _find_axial_series(dicom_dir):
     subjects = find_subjects(dicom_dir)
     all_series = _flatten(map(find_series, subjects))
-    return list(filter(lambda s: s.orientation == 'axial', all_series))
+    for s in all_series:
+        try:
+            if s.orientation == 'axial':
+                yield s
+        except AttributeError as e:
+            print("AttributeError for subject_id:", s.subject.id_)
+    # return filter(lambda s: s.orientation == 'axial', all_series)
 
 
 def _flatten(sequence):
@@ -88,21 +94,25 @@ SegmentationArea = namedtuple("SegmentationArea", ["subject_id", "area_mm2"])
 
 
 def _calculate_smas(axial_series, segmentations):
-    series_segmentation_pairs = toolz.join(
+    segmentation_series_pairs = toolz.join(
         leftkey=lambda ax: ax.subject.id_,
         leftseq=axial_series,
         rightkey=lambda s: s.subject_id,
         rightseq=segmentations
     )
 
-    for series, segmentation in series_segmentation_pairs:
-        scale_factor = np.product(np.array(series.resolution) / np.array(segmentation.image_data.shape))
-        segmented_pixels = np.count_nonzero(segmentation.image_data)
-        pixel_area = np.product(series.true_spacing)
-        yield SegmentationArea(
-            subject_id=series.subject.id_,
-            area_mm2=pixel_area * segmented_pixels * scale_factor
-        )
+    for segmentation, series in segmentation_series_pairs:
+        try:
+            scale_factor = np.product(np.array(series.resolution) / np.array(segmentation.image_data.shape))
+            segmented_pixels = np.count_nonzero(segmentation.image_data)
+            pixel_area = np.product(series.true_spacing)
+            yield SegmentationArea(
+                subject_id=series.subject.id_,
+                area_mm2=pixel_area * segmented_pixels * scale_factor
+            )
+        except AttributeError as e:
+            print("AttributeError for subject_id:", s.subject.id_, "when calculating area")
+            print(e)
 
 if __name__ == "__main__":
     main(sys.argv[1:])

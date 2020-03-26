@@ -222,6 +222,8 @@ class ImageSeries:
         self.series_path = series_path
         self.accession_path = accession_path
 
+        self._first_dataset = None
+
     @property
     def pixel_data(self):
         return load_pixel_data_from_paths(
@@ -259,7 +261,13 @@ class ImageSeries:
 
     @property
     def _first_dcm_dataset(self):
-        return pydicom.read_file(self._first_dcm_path)
+        if not self._first_dataset:
+            path = self._first_dcm_path
+            print("accessing", self.subject.id_)
+            print(path)
+            self._first_dataset = pydicom.read_file(path, force=True)
+
+        return self._first_dataset
 
     @property
     def _first_dcm_path(self):
