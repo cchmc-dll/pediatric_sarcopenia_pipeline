@@ -33,7 +33,7 @@ local_training_output_dir = local_root / 'from_remote' / 'training_output'
 
 
 @task
-def run_training(connection, run_name, gpuids=0):
+def run_training(connection, run_name, gpuids=0, extra_python_args=""):
     """
     Install necessary packages first with: pip install -r deploy-requirements.txt
 
@@ -53,7 +53,8 @@ def run_training(connection, run_name, gpuids=0):
         connection,
         args_file_path=get_args_file_path(run_name),
         run_output_dir=docker_run_output_dir,
-        gpuids=gpuids
+        gpuids=gpuids,
+        extra_python_args=extra_python_args,
     )
     retrieve_training_output(connection, run_dir_name=run_dir_name)
 
@@ -70,16 +71,23 @@ def run_in_docker(connection, run_name, docker_cmd, gpuids=0):
 
 
 def get_run_dir_name(run_name):
-    datetime_tag = datetime.now().strftime('%Y%m%d-%H%M%S')
+    datetime_tag = datetime.now().strftime('%Y%m%d-%H%M%S%f')
     return f'{run_name}_{datetime_tag}'
 
 
 def build_docker_image_on_remote(c, run_dir_name):
+    print("Building image on remote")
+    print("Making app target dir")
     make_app_target_dir(c)
+    print("zipping local app")
     zip_app_locally()
+    print("copying app to remote")
     copy_app_to_remote(c)
+    print("unzipping app on remote")
     unzip_app_on_remote(c)
+    print("creating run output directory")
     create_run_output_dir(c, run_output_dirname=run_dir_name)
+    print("running docker build command")
     run_docker_build_command(c)
 
 
@@ -129,11 +137,10 @@ def get_args_file_path(run_name):
     return PurePosixPath('config', 'run', f'{run_name}.args')
 
 
-def run_docker_image_for_training(c, args_file_path, run_output_dir, gpuids):
-    python_cmd = f'python run_training.py @{args_file_path} --output_dir={run_output_dir}'
+def run_docker_image_for_training(c, args_file_path, run_output_dir, gpuids, extra_python_args):
+    python_cmd = f'python run_training.py @{args_file_path} --output_dir={run_output_dir} {extra_python_args}'
     run_training_cmd = docker_run_cmd(python_cmd, gpuids=gpuids)
 
-    print(run_training_cmd)
     c.run(run_training_cmd)
 
 

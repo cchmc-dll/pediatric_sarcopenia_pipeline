@@ -1,0 +1,9 @@
+--training_model_name=combined_2020-02-18_fold_2.h5
+--data_file=./datasets/combined_205_fixed_checked_2020-02-18.h5
+--data_split=0.8
+--training_split=datasets/combined_205_fixed_checked_2020-02-18_kfold/fold_2_train.pkl
+--validation_split=datasets/combined_205_fixed_checked_2020-02-18_kfold/fold_2_val.pkl
+--n_epochs=100
+--image_masks=Muscle
+--problem_type=Segmentation
+--GPU=1

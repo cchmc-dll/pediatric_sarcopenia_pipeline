@@ -18,6 +18,7 @@
 *.NII
 *.NIFTI
 *.H5
+fabric.yml
 
 # IDE stuff
 /.idea

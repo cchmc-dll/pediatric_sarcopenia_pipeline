@@ -45,12 +45,12 @@ class StudyImageSet:
         self.axial_dir = axial_dir
 
     def get_dicom_dataset(self, orientation, search_pattern='*.dcm'):
-        directory = getattr(self, f'{orientation}_dir')
+        directory = getattr(self, '{}_dir'.format(orientation))
         first_dcm = next(directory.glob(search_pattern))
         return pydicom.dcmread(str(first_dcm))
 
     def get_axial_l3_dataset(self):
-        pattern = f'IM-CT-{self.axial_l3}-*'
+        pattern = 'IM-CT-{}-*'.format(self.axial_l3)
         return self.get_dicom_dataset(orientation='axial', search_pattern=pattern)
 
     @property
@@ -58,7 +58,7 @@ class StudyImageSet:
         return str(self.subject_id)
 
     def _pixel_data(self, orientation, search_pattern='*.dcm'):
-        directory = getattr(self, f'{orientation}_dir')
+        directory = getattr(self, '{}_dir'.format(orientation))
         dcm_paths = list(directory.glob(search_pattern))
         try:
             return load_pixel_data_from_paths(dcm_paths)
@@ -135,8 +135,17 @@ def _build_study_image(dataset_path, row):
     """
     Uses weird double for loop because Path#glob returns a generator...
     """
-    for axial_dir in dataset_path.glob(f"*{row['subject_id']}/**/SE-{row['axial_series']}-*/"):
-        for sagittal_dir in dataset_path.glob(f"*{row['subject_id']}/**/SE-{row['sagittal_series']}-*/"):
+    axial_glob_str = "*{subject_id}/**/SE-{axial_series}-*/".format(
+        subject_id=row["subject_id"],
+        axial_series=row["axial_series"]
+    )
+    sagittal_glob_str = "*{subject_id}/**/SE-{sagittal_series}-*/".format(
+        subject_id=row["subject_id"],
+        sagittal_series=row["sagittal_series"]
+    )
+
+    for axial_dir in dataset_path.glob(axial_glob_str):
+        for sagittal_dir in dataset_path.glob(sagittal_glob_str):
             return StudyImageSet(axial_dir=axial_dir, sagittal_dir=sagittal_dir, **row)
 
 
