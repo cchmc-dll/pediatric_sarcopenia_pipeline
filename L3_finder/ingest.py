@@ -221,7 +221,18 @@ class ImageSeries:
 
     @property
     def spacing(self):
+        """pseudo spacing with y replaced for the L3 finder"""
         return get_spacing(self._first_dcm_dataset)
+
+    @property
+    def true_spacing(self):
+        """actual spacing array for axial sma calculation"""
+        return [float(spacing) for spacing in self._first_dcm_dataset.PixelSpacing]
+
+    @property
+    def resolution(self):
+        ds = self._first_dcm_dataset
+        return (ds.Rows, ds.Columns)
 
     @property
     def orientation(self):
