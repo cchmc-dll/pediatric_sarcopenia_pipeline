@@ -258,13 +258,17 @@ class ImageSeries:
                 file=sys.stderr
             )
             raise e
+        except AttributeError as e:
+            print("Attribute error for pt -", self.subject.id_,file=sys.stderr)
+            raise e
+
 
     @property
     def _first_dcm_dataset(self):
         if not self._first_dataset:
             path = self._first_dcm_path
-            print("accessing", self.subject.id_)
-            print(path)
+            # print("accessing", self.subject.id_, file=sys.stderr)
+            # print(path, file=sys.stderr)
             self._first_dataset = pydicom.read_file(path, force=True)
 
         return self._first_dataset
@@ -313,3 +317,26 @@ def create_sagittal_mips_from_study_images(study_images):
             invalid_images.append(study_images)
 
     return mips, invalid_images
+
+
+def separate_series(series):
+    excluded_series = []
+
+    def same_orientation(series, orientation):
+        try:
+            return series.orientation == orientation
+        except AttributeError as e:
+            print(
+                "Error when determining series orientation for subject:",
+                series.subject.id_,
+                file=sys.stderr
+            )
+            excluded_series.append(series)
+            return False
+    sag_filter = functools.partial(same_orientation, orientation='sagittal')
+    axial_filter = functools.partial(same_orientation, orientation='axial')
+
+    sagittal_series = list(filter(sag_filter, series))
+    axial_series = list(filter(axial_filter, series))
+
+    return sagittal_series, axial_series, excluded_series

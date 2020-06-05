@@ -67,7 +67,7 @@ def _find_axial_series(dicom_dir):
             if s.orientation == 'axial':
                 yield s
         except AttributeError as e:
-            print("AttributeError for subject_id:", s.subject.id_)
+            print("AttributeError for subject_id:", s.subject.id_, file=sys.stderr)
     # return filter(lambda s: s.orientation == 'axial', all_series)
 
 
@@ -95,10 +95,10 @@ SegmentationArea = namedtuple("SegmentationArea", ["subject_id", "area_mm2"])
 
 def _calculate_smas(axial_series, segmentations):
     segmentation_series_pairs = toolz.join(
-        leftkey=lambda ax: ax.subject.id_,
-        leftseq=axial_series,
-        rightkey=lambda s: s.subject_id,
-        rightseq=segmentations
+        leftkey=lambda s: s.subject_id,
+        leftseq=segmentations,
+        rightkey=lambda ax: ax.subject.id_,
+        rightseq=axial_series,
     )
 
     for segmentation, series in segmentation_series_pairs:
@@ -111,8 +111,7 @@ def _calculate_smas(axial_series, segmentations):
                 area_mm2=pixel_area * segmented_pixels * scale_factor
             )
         except AttributeError as e:
-            print("AttributeError for subject_id:", s.subject.id_, "when calculating area")
-            print(e)
+            print("AttributeError for subject_id:", series.subject.id_, "when calculating area", file=sys.stderr)
 
 if __name__ == "__main__":
     main(sys.argv[1:])

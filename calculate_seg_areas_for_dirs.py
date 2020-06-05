@@ -10,7 +10,9 @@ def main(argv):
     """sma is skeletal muscle area, sum of mask pixels * pixel area"""
     args = parse_args(argv)
     areas_by_directory = calculate_areas(args)
-    output_to_csv(args.output_directory_path, areas_by_directory)
+    output_csv_paths = list(output_to_csv(args, areas_by_directory))
+    for p in output_csv_paths:
+        print(p)
 
 
 def parse_args(argv):
@@ -67,16 +69,17 @@ def calculate_areas(args):
         )
 
 
-def output_to_csv(output_directory_path, areas_by_directory):
+def output_to_csv(args, areas_by_directory):
     for segmentation_dir, areas in areas_by_directory:
-        filename = Path(segmentation_dir).name + ".csv"
-        output_csv_path = Path(output_directory_path, filename)
+        stem = Path(args.segmentation_image_name).stem
+        filename = Path(segmentation_dir).name + "_" + stem + ".csv"
+        output_csv_path = Path(args.output_directory_path, filename)
         with open(output_csv_path, "w") as csvfile:
             csv_writer = csv.writer(csvfile)
             csv_writer.writerow(["subject_id", "area_mm2"])
             for area in areas:
                 csv_writer.writerow(area)
-        print(output_csv_path)
+        yield output_csv_path
 
 
 

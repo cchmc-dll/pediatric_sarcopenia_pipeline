@@ -10,7 +10,9 @@ from toolz import groupby
 
 def main(argv):
     args = parse_args(argv)
+    output_file = concat_csvs(args)
 
+def concat_csvs(args):
     csv_rows = []
     for f in args.csv_files:
         dict_reader = csv.DictReader(f)
@@ -18,9 +20,9 @@ def main(argv):
         csv_rows.extend(rows)
 
     fold_results = []
-    for subject_id, rows in groupby('', csv_rows).items():
+    for subject_id, rows in groupby('subject_id', csv_rows).items():
         new_row = [subject_id]
-        errors = [r['DSC'] for r in rows]
+        errors = [r[args.data_column] for r in rows]
         new_row.extend(errors)
         error_avg = mean([Decimal(e) for e in errors])
         new_row.append("{0:.3f}".format(error_avg))
@@ -31,15 +33,16 @@ def main(argv):
     writer.writerows(fold_results)
 
     num_greater_than_10 = len(list(filter(lambda x: x > 10, [Decimal(r[-1]) for r in fold_results])))
-    print('> 10:' , num_greater_than_10)
+    return args.output_file
 
     # args.output_file.writelines(result)
 
 
 def parse_args(argv):
     parser = ArgumentParser()
-    parser.add_argument('csv_files', type=FileType('r'), nargs='+')
-    parser.add_argument('output_file', type=FileType('w'))
+    parser.add_argument('--csv_files', required=True, type=FileType('r'), nargs='+')
+    parser.add_argument('--output_file', required=True, type=FileType('w'))
+    parser.add_argument('--data_column', required=True)
 
     return parser.parse_args(argv)
 

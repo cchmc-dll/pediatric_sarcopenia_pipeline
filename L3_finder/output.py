@@ -1,6 +1,7 @@
 import csv
 import functools
 from pathlib import Path
+import sys
 
 import numpy as np
 import toolz
@@ -23,7 +24,14 @@ def output_images(l3_images, args):
     )
 
     for l3_image in l3_images:
-        toolz.pipe(l3_image, *output_pipeline)
+        try:
+            toolz.pipe(l3_image, *output_pipeline)
+        except IndexError as e:
+            print(
+                "Index error when outputting subject",
+                l3_image.subject_id,
+                file=sys.stderr
+            )
 
 
 def _ensure_output_dir_exists(output_dir):

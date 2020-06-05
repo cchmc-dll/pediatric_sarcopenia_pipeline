@@ -4,7 +4,7 @@ from argparse import ArgumentParser
 
 import toolz
 
-from L3_finder.ingest import find_subjects, find_series
+from L3_finder.ingest import find_subjects, find_series, separate_series
 from L3_finder.output import output_l3_images_to_h5, output_images
 from L3_finder.predict import make_predictions_for_images
 from L3_finder.preprocess import create_sagittal_mip, preprocess_images
@@ -76,9 +76,10 @@ def main():
 def find_l3_images(args):
     subjects = list(find_subjects(args.dicom_dir))
     series = list(flatten(find_series(s) for s in subjects))
-    sagittal_series = list(
-        filter(lambda s: s.orientation == 'sagittal', series))
-    axial_series = list(filter(lambda s: s.orientation == 'axial', series))
+    # sagittal_series = list(
+        # filter(lambda s: s.orientation == 'sagittal', series))
+    # axial_series = list(filter(lambda s: s.orientation == 'axial', series))
+    sagittal_series, axial_series, excluded_series = separate_series(series)
 
     mips = (create_sagittal_mip(series.pixel_data) for series in
             sagittal_series)
