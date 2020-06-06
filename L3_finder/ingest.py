@@ -1,14 +1,16 @@
 import csv
 import functools
+import multiprocessing
 import os
 import subprocess
 import sys
-
+import warnings
 import numpy as np
 from pathlib import Path
-
 import pydicom
 from tqdm import tqdm
+
+from util.reify import reify
 
 
 dcm2niix_exe = Path(os.getcwd(), 'ext', 'dcm2niix.exe')
@@ -192,15 +194,6 @@ def find_axial_l3_offsets(study_images):
     return np.array(offsets_in_px, dtype=np.float32)
 
 
-class Subject:
-    def __init__(self, path):
-        self.path = path
-
-    @property
-    def id_(self):
-        return self.path.name.split('_')[-1]
-
-
 KNOWN_ORIENTATIONS = {
     (1, 0, 0, 0, 1, 0): 'axial',
     (-1, 0, 0, 0, -1, 0): 'axial',
@@ -214,6 +207,16 @@ KNOWN_ORIENTATIONS = {
 def get_orientation(orientation_array):
     rounded_orientation = [round(float(x)) for x in orientation_array]
     return KNOWN_ORIENTATIONS[tuple(rounded_orientation)]
+
+
+class UnknownOrientation(Exception):
+    """
+    Encountered an orientation that is not defined in the KNOWN_ORIENTATIONS
+    variable.
+    """
+    def __init__(self, series, msg=None):
+        super(UnknownOrientation, self).__init__(msg)
+        self.series = series
 
 
 class ImageSeries:
@@ -230,40 +233,29 @@ class ImageSeries:
             dicom_paths=list(self.series_path.iterdir())
         )
 
-    @property
+    @reify
     def spacing(self):
         """pseudo spacing with y replaced for the L3 finder"""
         return get_spacing(self._first_dcm_dataset)
 
-    @property
+    @reify
     def true_spacing(self):
         """actual spacing array for axial sma calculation"""
         return [float(spacing) for spacing in self._first_dcm_dataset.PixelSpacing]
 
-    @property
+    @reify
     def resolution(self):
         ds = self._first_dcm_dataset
         return (ds.Rows, ds.Columns)
 
-    @property
+    @reify
     def orientation(self):
         try:
             return get_orientation(self._first_dcm_dataset.ImageOrientationPatient)
-        except KeyError as e:
-            print(
-                "Unknown orientation for for subject: {}. Image Path: {}".format(
-                    self.subject.id_,
-                    self._first_dcm_path
-                ),
-                file=sys.stderr
-            )
-            raise e
-        except AttributeError as e:
-            print("Attribute error for pt -", self.subject.id_,file=sys.stderr)
-            raise e
+        except (KeyError, AttributeError) as e:
+            raise UnknownOrientation(series=self) from e
 
-
-    @property
+    @reify
     def _first_dcm_dataset(self):
         if not self._first_dataset:
             path = self._first_dcm_path
@@ -273,11 +265,11 @@ class ImageSeries:
 
         return self._first_dataset
 
-    @property
+    @reify
     def _first_dcm_path(self):
         return str(next(self.series_path.iterdir()).as_posix())
 
-    @property
+    @reify
     def slice_thickness(self):
         return float(self._first_dcm_dataset.SliceThickness)
 
@@ -288,19 +280,50 @@ class ImageSeries:
         return int(round(pos / self.slice_thickness))
 
 
-def find_subjects(dataset_dir):
+class Subject:
+    def __init__(self, path):
+        self.path = path
+
+    @property
+    def id_(self):
+        return self.path.name.split('_')[-1]
+
+    def find_series(self):
+        for accession_path in self.path.iterdir():
+            for series_path in accession_path.iterdir():
+                yield ImageSeries(
+                    subject=subject,
+                    series_path=series_path,
+                    accession_path=accession_path
+                )
+
+
+class NoSubjectDirSubject:
+    def __init__(self, path):
+        self.path = path
+
+    @property
+    def id_(self):
+        return self.path.name.split('-')[0]
+
+    def find_series(self):
+          for series_path in self.path.iterdir():
+              yield ImageSeries(
+                  subject=self,
+                  series_path=series_path,
+                  accession_path=None
+              )
+
+def find_subjects(dataset_dir, new_tim_dir_structure=False):
+    subject_class = NoSubjectDirSubject if new_tim_dir_structure else Subject
+
     for subject_path in Path(dataset_dir).iterdir():
-        yield Subject(path=subject_path)
+        yield subject_class(path=subject_path)
 
 
 def find_series(subject):
-    for accession_path in subject.path.iterdir():
-        for series_path in accession_path.iterdir():
-            yield ImageSeries(
-                subject=subject,
-                series_path=series_path,
-                accession_path=accession_path
-            )
+    warnings.warn("deprecated, use subject.find_series() instead", DeprecatedWarning)
+    subject.find_series()
 
 
 def create_sagittal_mips_from_study_images(study_images):
@@ -322,21 +345,37 @@ def create_sagittal_mips_from_study_images(study_images):
 def separate_series(series):
     excluded_series = []
 
-    def same_orientation(series, orientation):
-        try:
-            return series.orientation == orientation
-        except AttributeError as e:
-            print(
-                "Error when determining series orientation for subject:",
-                series.subject.id_,
-                file=sys.stderr
-            )
-            excluded_series.append(series)
-            return False
-    sag_filter = functools.partial(same_orientation, orientation='sagittal')
-    axial_filter = functools.partial(same_orientation, orientation='axial')
+    sag_filter = functools.partial(
+        same_orientation,
+        orientation='sagittal',
+        excluded_series=excluded_series
+    )
+    axial_filter = functools.partial(
+        same_orientation,
+        orientation='axial',
+        excluded_series=excluded_series
+    )
 
-    sagittal_series = list(filter(sag_filter, series))
-    axial_series = list(filter(axial_filter, series))
+    def pool_filter(pool, func, candidates):
+        return [
+            c for c, keep
+            in zip(candidates, pool.map(func, candidates))
+            if keep
+        ]
+
+    with multiprocessing.Pool(12) as p:
+        # sagittal_series = list(filter(sag_filter, series))
+        # axial_series = list(filter(axial_filter, series))
+        sagittal_series = pool_filter(p, sag_filter, series)
+        axial_series = pool_filter(p, axial_filter, series)
 
     return sagittal_series, axial_series, excluded_series
+
+
+def same_orientation(series, orientation, excluded_series):
+    try:
+        return series.orientation == orientation
+    except UnknownOrientation as e:
+        excluded_series.append(e)
+        return False
+

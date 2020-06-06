@@ -1,13 +1,12 @@
 import itertools
+import sys
 
 from argparse import ArgumentParser
 
 import toolz
 
-from L3_finder.ingest import find_subjects, find_series, separate_series
+from L3_finder.ingest import find_subjects, separate_series
 from L3_finder.output import output_l3_images_to_h5, output_images
-from L3_finder.predict import make_predictions_for_images
-from L3_finder.preprocess import create_sagittal_mip, preprocess_images
 
 
 def parse_args():
@@ -20,6 +19,11 @@ def parse_args():
              'script. That is subject_1/accession_xyz/series{sagittal & '
              'axial}. The accession directory should contain both a sagittal '
              'image series and an axial image series. '
+    )
+    parser.add_argument(
+        '--new_tim_dicom_dir_structure',
+        action='store_true',
+        help='Gets subjects in the format used for the 10000 pt dataset versus that used for the 380 pt dataset'
     )
     parser.add_argument(
         '--model_path',
@@ -62,6 +66,7 @@ def main():
 
     l3_images = find_l3_images(args)
 
+
     output_images(
         l3_images,
         args=dict(
@@ -74,19 +79,42 @@ def main():
 
 
 def find_l3_images(args):
-    subjects = list(find_subjects(args.dicom_dir))
-    series = list(flatten(find_series(s) for s in subjects))
-    # sagittal_series = list(
-        # filter(lambda s: s.orientation == 'sagittal', series))
-    # axial_series = list(filter(lambda s: s.orientation == 'axial', series))
+    print("Finding subjects")
+
+    subjects = list(
+        find_subjects(
+            args.dicom_dir,
+            new_tim_dir_structure=args.new_tim_dicom_dir_structure
+        )
+    )
+
+    print("Finding series")
+
+    series = list(flatten(s.find_series() for s in subjects))
+
+    print("Separating series")
     sagittal_series, axial_series, excluded_series = separate_series(series)
 
+    print(
+      "Series separated\n",
+      len(sagittal_series), "sagittal series.",
+      len(axial_series), "axial series.",
+      len(excluded_series), "excluded series."
+    )
+
+    print("Importing things that need tensorflow...")
+    from L3_finder.predict import make_predictions_for_images
+    from L3_finder.preprocess import create_sagittal_mip, preprocess_images
+
+    print("Creating sagittal MIPS")
     mips = (create_sagittal_mip(series.pixel_data) for series in
             sagittal_series)
     spacings = (series.spacing for series in sagittal_series)
 
+    print("Preprocessing Images")
     preprocessed_images = preprocess_images(images=mips, spacings=spacings)
 
+    print("Making predictions")
     prediction_results = make_predictions_for_images(
         preprocessed_images,
         model_path=args.model_path

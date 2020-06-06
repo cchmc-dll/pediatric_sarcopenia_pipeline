@@ -50,7 +50,7 @@ def _write_prediction_csv_header(csv_path, should_overwrite):
     if not should_overwrite and csv_path.exists():
         raise FileExistsError(csv_path)
 
-    with open(csv_path, 'w') as f:
+    with open(str(csv_path), 'w') as f:
         writer = csv.writer(f)
         writer.writerow(
             [
@@ -181,7 +181,7 @@ def save_plot(image, output_directory, should_overwrite):
 
 
 def save_prediction_results_to_csv(l3_image, csv_path):
-    with open(csv_path, 'a') as f:
+    with open(str(csv_path), 'a') as f:
         writer = csv.writer(f)
         writer.writerow(l3_image.as_csv_row())
 
@@ -192,7 +192,7 @@ def save_prediction_results_to_csv(l3_image, csv_path):
 def output_l3_images_to_h5(l3_images, h5_file_path):
     expanded_path = Path(h5_file_path).expanduser()
 
-    with open_file(expanded_path, mode='w') as h5_file:
+    with open_file(str(expanded_path), mode='w') as h5_file:
 
         first_l3_image = next(l3_images)
         imdata_array = h5_file.create_earray(

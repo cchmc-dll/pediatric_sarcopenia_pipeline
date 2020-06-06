@@ -27,4 +27,4 @@ RUN pip install imgaug==0.2.9
 # RUN python setup.py install
 # WORKDIR /opt/app
 
-COPY . /opt/app
+# COPY . /opt/app
