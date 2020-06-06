@@ -81,25 +81,48 @@ class MissingImage(RuntimeError):
 
 def load_pixel_data_from_paths(dicom_paths):
     """ Calculates"""
+    # first_dataset = pydicom.dcmread(str(dicom_paths[0]))
+    # first_image = first_dataset.pixel_array
+    # image_dimensions = first_image.shape
+    # out_array = np.zeros(
+        # shape=(len(dicom_paths), image_dimensions[0], image_dimensions[1]),
+        # dtype=first_image.dtype
+    # )
+
+    # # First loaded path not guaranteed first image in series
+    # index = int(first_dataset.InstanceNumber) - 1
+    # try:
+        # out_array[index] = first_image
+        # datasets = (pydicom.dcmread(str(path)) for path in dicom_paths[1:])
+        # for dataset in datasets:
+            # index = int(dataset.InstanceNumber) - 1
+            # out_array[index] = dataset.pixel_array
+    # except IndexError:
+        # out_array = np.resize(out_array, (index + 1, image_dimensions[0], image_dimensions[1]))
+    # except ValueError as e:
+        # import pdb; pdb.set_trace()
+    # return out_array
+    datasets = list(
+        sorted(
+            (pydicom.dcmread(str(p)) for p in dicom_paths),
+            key=lambda ds: int(ds.InstanceNumber)
+        )
+    )
+
     first_dataset = pydicom.dcmread(str(dicom_paths[0]))
     first_image = first_dataset.pixel_array
     image_dimensions = first_image.shape
+
     out_array = np.zeros(
-        shape=(len(dicom_paths), image_dimensions[0], image_dimensions[1]),
+        shape=(len(datasets), image_dimensions[0], image_dimensions[1]),
         dtype=first_image.dtype
     )
 
-    # First loaded path not guaranteed first image in series
-    index = int(first_dataset.InstanceNumber) - 1
-    try:
-        out_array[index] = first_image
-        datasets = (pydicom.dcmread(str(path)) for path in dicom_paths[1:])
-        for dataset in datasets:
-            index = int(dataset.InstanceNumber) - 1
-            out_array[index] = dataset.pixel_array
-    except IndexError:
-        out_array = np.resize(out_array, (index + 1, image_dimensions[0], image_dimensions[1]))
+    for index, dataset in enumerate(datasets):
+        out_array[index] = dataset.pixel_array
+
     return out_array
+
 
 
 def find_images_and_ydata_in_l3_finder_training_format(
