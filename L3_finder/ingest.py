@@ -292,7 +292,7 @@ class Subject:
         for accession_path in self.path.iterdir():
             for series_path in accession_path.iterdir():
                 yield ImageSeries(
-                    subject=subject,
+                    subject=self,
                     series_path=series_path,
                     accession_path=accession_path
                 )
@@ -364,8 +364,6 @@ def separate_series(series):
         ]
 
     with multiprocessing.Pool(12) as p:
-        # sagittal_series = list(filter(sag_filter, series))
-        # axial_series = list(filter(axial_filter, series))
         sagittal_series = pool_filter(p, sag_filter, series)
         axial_series = pool_filter(p, axial_filter, series)
 

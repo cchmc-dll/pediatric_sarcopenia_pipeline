@@ -1,12 +1,12 @@
 import sys
 from collections import namedtuple
-
+import numpy as np
 from skimage.draw import line_aa
 from tqdm import tqdm
 
-
 from ct_slice_detection.models.detection import build_prediction_model
 from ct_slice_detection.utils.testing_utils import predict_slice
+from util.iterable import batch_to_ndarray
 
 Prediction = namedtuple(
     'Prediction',
@@ -17,18 +17,71 @@ Output = namedtuple('OutputData', ['prediction', 'image_with_predicted_line'])
 Result = namedtuple('Result', ['prediction', 'display_image'])
 
 
-def make_predictions_for_images(preprocessed_images, model_path):
+def make_predictions_for_images(preprocessed_images, model_path, shape):
     model = load_model(model_path)
-    for image, unpadded_height in tqdm(preprocessed_images):
-        prediction = make_prediction(model, image)
-        unpadded_image, _ = undo_padding(prediction, unpadded_height)
 
-        display_image = draw_line_on_predicted_image(
-            prediction,
-            unpadded_image,
-            console=tqdm
+    # can't fit every picture in memory, so have to do this unfortunately
+    image_gen = []
+    unpadded_height_gen = []
+
+    for i in preprocessed_images:
+        image_gen.append(i.pixel_data)
+        unpadded_height_gen.append(i.unpadded_height)
+
+    batches = zip(
+        batch_to_ndarray(
+            iterable=image_gen,
+            batch_size=512,
+            item_shape=shape,
+        ),
+        batch_to_ndarray(
+            iterable=unpadded_height_gen,
+            batch_size=512,
+            item_shape=(),
+            dtype=np.int32,
         )
-        yield Result(prediction, display_image)
+    )
+
+    for images, unpadded_heights in batches:
+        predictions = predict_batch(images, model)
+
+        unpadded_images = [
+            undo_padding(pred, height)
+            for pred, height
+            in zip(predictions, unpadded_heights)
+        ]
+        display_images = [
+            draw_line_on_predicted_image(p, upi[0], console=tqdm)
+            for p, upi
+            in zip(predictions, unpadded_images)
+        ]
+
+        yield from (
+            Result(prediction, display_image)
+            for prediction, display_image
+            in zip(predictions, display_images)
+        )
+
+    # for image, unpadded_height in tqdm(preprocessed_images):
+        # prediction = make_prediction(model, image)
+        # unpadded_image, _ = undo_padding(prediction, unpadded_height)
+
+        # display_image = draw_line_on_predicted_image(
+            # prediction,
+            # unpadded_image,
+            # console=tqdm
+        # )
+        # yield Result(prediction, display_image)
+
+def predict_batch(batch, model):
+    predictions = model.predict(batch)
+
+    # removes unnecessary extra axis
+    reshaped_preds = predictions.reshape(len(predictions), -1)
+    indices_of_maxes = np.argmax(reshaped_preds, axis=1)
+    maxes = np.max(reshaped_preds, axis=1)
+
+    return [Prediction(*p) for p in zip(indices_of_maxes, maxes, predictions, batch)]
 
 
 def load_model(model_path):
@@ -48,8 +101,7 @@ def make_prediction(model, image):
 def undo_padding(prediction, image_height):
     image = prediction.image
     prediction_map = prediction.prediction_map
-
-    return image[:, :image_height, :, :], prediction_map[:image_height, :],
+    return image[:, :image_height, :], prediction_map[:image_height, :],
 
 
 def draw_line_on_predicted_image(prediction, unpadded_image, console):
@@ -60,7 +112,7 @@ def draw_line_on_predicted_image(prediction, unpadded_image, console):
         c1=unpadded_image.shape[2] - 1
     )
     output = unpadded_image.reshape(
-        unpadded_image.shape[1], unpadded_image.shape[2]
+        unpadded_image.shape[0], unpadded_image.shape[1]
     )
 
     try:

@@ -4,6 +4,7 @@ import SimpleITK as sitk
 import cv2
 import numpy as np
 from scipy.ndimage import zoom
+import toolz
 
 from ct_slice_detection.io.preprocessing import preprocess_to_8bit
 from ct_slice_detection.utils.testing_utils import preprocess_test_image
@@ -116,3 +117,11 @@ def preprocess_images(images, spacings):
 def expand_axes(image):
     result = preprocess_test_image(image)
     return result[:, :, np.newaxis]
+
+
+def group_mips_by_dimension(mips):
+    def dimension_from_sagittal_mip(sag_mip):
+        return sag_mip.image.pixel_data.shape
+    return toolz.groupby(dimension_from_sagittal_mip, mips)
+
+

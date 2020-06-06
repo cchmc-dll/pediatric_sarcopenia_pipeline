@@ -1,12 +1,15 @@
+from argparse import ArgumentParser
+from collections import namedtuple
 import itertools
 import sys
-
-from argparse import ArgumentParser
-
 import toolz
+
 
 from L3_finder.ingest import find_subjects, separate_series
 from L3_finder.output import output_l3_images_to_h5, output_images
+
+
+SagittalMIP = namedtuple("SagittalMIP", "series image")
 
 
 def parse_args():
@@ -67,6 +70,7 @@ def main():
     l3_images = find_l3_images(args)
 
 
+    print("Outputting images")
     output_images(
         l3_images,
         args=dict(
@@ -104,7 +108,7 @@ def find_l3_images(args):
 
     print("Importing things that need tensorflow...")
     from L3_finder.predict import make_predictions_for_images
-    from L3_finder.preprocess import create_sagittal_mip, preprocess_images
+    from L3_finder.preprocess import create_sagittal_mip, preprocess_images, group_mips_by_dimension
 
     print("Creating sagittal MIPS")
     mips = (create_sagittal_mip(series.pixel_data) for series in
@@ -114,11 +118,26 @@ def find_l3_images(args):
     print("Preprocessing Images")
     preprocessed_images = preprocess_images(images=mips, spacings=spacings)
 
+    sagittal_mips = [
+        SagittalMIP(s, i)
+        for s, i
+        in zip(sagittal_series, preprocessed_images)
+    ]
+
+    print("Separate heights for better batching")
+    mips_by_dimension = group_mips_by_dimension(sagittal_mips)
+    print("Dimensions in set:", mips_by_dimension.keys())
+
     print("Making predictions")
-    prediction_results = make_predictions_for_images(
-        preprocessed_images,
-        model_path=args.model_path
-    )
+    prediction_results = []
+    for dimension, mips in mips_by_dimension.items():
+        dim_group_results = make_predictions_for_images(
+            (mip.image for mip in mips),
+            model_path=args.model_path,
+            shape=dimension,
+        )
+        prediction_results.extend(dim_group_results)
+
     l3_images = build_l3_images(
         axial_series, sagittal_series, prediction_results
     )
