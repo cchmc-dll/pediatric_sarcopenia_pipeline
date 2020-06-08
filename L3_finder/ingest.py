@@ -223,6 +223,9 @@ class UnknownOrientation(Exception):
 
 
 class ImageSeries:
+    position_key = (0x0020, 0x0032)
+    z_pos_key = 2
+
     def __init__(self, subject, series_path, accession_path):
         self.subject = subject
         self.series_path = series_path
@@ -245,53 +248,69 @@ class ImageSeries:
     @reify
     def spacing(self):
         """pseudo spacing with y replaced for the L3 finder"""
-        return get_spacing(self._first_dcm_dataset)
+        return get_spacing(self._any_dcm_dataset)
 
     @reify
     def true_spacing(self):
         """actual spacing array for axial sma calculation"""
-        return [float(spacing) for spacing in self._first_dcm_dataset.PixelSpacing]
+        return [float(spacing) for spacing in self._any_dcm_dataset.PixelSpacing]
 
     @reify
     def resolution(self):
-        ds = self._first_dcm_dataset
+        ds = self._any_dcm_dataset
         return (ds.Rows, ds.Columns)
 
     @reify
     def orientation(self):
         try:
-            return get_orientation(self._first_dcm_dataset.ImageOrientationPatient)
+            return get_orientation(self._any_dcm_dataset.ImageOrientationPatient)
         except (KeyError, AttributeError) as e:
             raise UnknownOrientation(series=self) from e
 
     @reify
-    def _first_dcm_dataset(self):
-        if not self._first_dataset:
-            path = self._first_dcm_path
-            # print("accessing", self.subject.id_, file=sys.stderr)
-            # print(path, file=sys.stderr)
-            self._first_dataset = pydicom.read_file(path, force=True)
-
-        return self._first_dataset
+    def _any_dcm_dataset(self):
+        return pydicom.read_file(self._any_dcm_path, force=True)
 
     @reify
-    def _first_dcm_path(self):
+    def _any_dcm_path(self):
         return str(next(self.series_path.iterdir()).as_posix())
 
     @reify
     def slice_thickness(self):
-        return float(self._first_dcm_dataset.SliceThickness)
+        return float(self._any_dcm_dataset.SliceThickness)
 
-    # TODO this is actually pos in mm!!!
-    def image_at_pos_in_px(self, pos):
-        return self.pixel_data[self.image_index_at_pos(pos)]
+    # TODO this is actually pos in mm for some pictures...!!!
+    def image_at_pos_in_px(self, pos, sagittal_start_z_pos):
+        return self.pixel_data[self.image_index_at_pos(pos, sagittal_start_z_pos)]
 
-    def image_index_at_pos(self, pos):
-        return int(round(pos / self.slice_thickness))
+    # Need to undo the spacing normalization, which is done using sagittal spacing[2]
+    def image_index_at_pos(self, pos_with_1mm_spacing, sagittal_start_z_pos):
+        """1mm spacing is the default coming out of the preprocessing"""
+        series_z_positions = np.array([
+            np.float(ds[self.position_key][self.z_pos_key])
+            for ds in self.datasets_in_order
+        ])
+        direction = np.sign(series_z_positions[-1] - series_z_positions[0])
+        z_position = sagittal_start_z_pos + pos_with_1mm_spacing*direction
+
+        # Finds the closest slice to calculated z_position
+        return np.argmin(np.abs(series_z_positions - z_position))
 
     @property
     def number_of_dicoms(self):
         return len(list(self.series_path.iterdir()))
+
+    @property
+    def starting_z_pos(self):
+        return np.float(self.datasets_in_order[0][self.position_key][self.z_pos_key])
+
+    @property
+    def datasets_in_order(self):
+        return sorted(
+            (pydicom.dcmread(str(p)) for p in self.series_path.iterdir()),
+            key=lambda ds: int(ds.InstanceNumber)
+        )
+
 
 
 class Subject:

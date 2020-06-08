@@ -18,46 +18,31 @@ def make_predictions_for_images(preprocessed_images, model_path, shape):
     model = load_model(model_path)
 
     # can't fit every picture in memory, so have to do this unfortunately
-    image_gen = []
-    unpadded_height_gen = []
-
+    images = []
+    unpadded_heights = []
     for i in preprocessed_images:
-        image_gen.append(i.pixel_data)
-        unpadded_height_gen.append(i.unpadded_height)
+        images.append(i.pixel_data)
+        unpadded_heights.append(i.unpadded_height)
+    images = np.array(images, dtype=np.int8)
 
-    batches = zip(
-        batch_to_ndarray(
-            iterable=image_gen,
-            batch_size=512,
-            item_shape=shape,
-        ),
-        batch_to_ndarray(
-            iterable=unpadded_height_gen,
-            batch_size=512,
-            item_shape=(),
-            dtype=np.int32,
-        )
-    )
+    predictions = predict_batch(images, model)
 
-    for images, unpadded_heights in batches:
-        predictions = predict_batch(images, model)
+    unpadded_images = [
+        undo_padding(pred, height)
+        for pred, height
+        in zip(predictions, unpadded_heights)
+    ]
+    display_images = [
+        draw_line_on_predicted_image(p, upi[0])
+        for p, upi
+        in zip(predictions, unpadded_images)
+    ]
 
-        unpadded_images = [
-            undo_padding(pred, height)
-            for pred, height
-            in zip(predictions, unpadded_heights)
-        ]
-        display_images = [
-            draw_line_on_predicted_image(p, upi[0])
-            for p, upi
-            in zip(predictions, unpadded_images)
-        ]
-
-        yield from (
-            Result(prediction, display_image)
-            for prediction, display_image
-            in zip(predictions, display_images)
-        )
+    return [
+        Result(prediction, display_image)
+        for prediction, display_image
+        in zip(predictions, display_images)
+    ]
 
     # for image, unpadded_height in tqdm(preprocessed_images):
         # prediction = make_prediction(model, image)

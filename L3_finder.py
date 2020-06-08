@@ -122,8 +122,11 @@ def find_l3_images(args):
     sagittal_series, axial_series, excluded_series = separate_series(series)
 
     print("SHORTENING for development")
-    sagittal_series = sagittal_series[:10]
-    axial_series = axial_series[:10]
+    # sagittal_series = sagittal_series[:10]
+    # axial_series = axial_series[:10]
+    # investigate = set(["11", "26", "29"])
+    # sagittal_series = [s for s in sagittal_series if s.subject.id_ in investigate]
+    # axial_series = [s for s in axial_series if s.subject.id_ in investigate]
 
     print(
       "Series separated\n",
@@ -176,7 +179,6 @@ def find_l3_images(args):
     l3_images = build_l3_images(
         axial_series, sagittal_series, prediction_results
     )
-
     return l3_images
 
 
@@ -211,7 +213,8 @@ class L3Image(object):
     @property
     def pixel_data(self):
         return self.axial_series.image_at_pos_in_px(
-            self.prediction_result.prediction.predicted_y_in_px
+            self.prediction_result.prediction.predicted_y_in_px,
+            sagittal_start_z_pos=self.sagittal_series.starting_z_pos
         )
 
     @property
@@ -229,7 +232,8 @@ class L3Image(object):
     @property
     def prediction_index(self):
         return self.axial_series.image_index_at_pos(
-            self.prediction_result.prediction.predicted_y_in_px
+            self.prediction_result.prediction.predicted_y_in_px,
+            sagittal_start_z_pos=self.sagittal_series.starting_z_pos
         )
 
     def as_csv_row(self):

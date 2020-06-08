@@ -28,6 +28,7 @@ def output_images(l3_images, args):
 
     image_outputter = functools.partial(_output_image, output_pipeline)
     print("Slow unless axial images already loaded...")
+
     # with multiprocessing.Pool(48) as pool:
         # # Could use map, but imap lets me get a progress bar
         # l3_images = list(
@@ -38,6 +39,7 @@ def output_images(l3_images, args):
         # )
         # pool.close()
         # pool.join()
+    # return l3_images
 
     return [image_outputter(l3_image) for l3_image in tqdm(l3_images)]
 
@@ -46,7 +48,7 @@ def _output_image(output_pipeline, l3_image):
     try:
         toolz.pipe(l3_image, *output_pipeline)
     except IndexError as e:
-        pass
+        import pdb; pdb.set_trace()
     finally:
         l3_image.free_pixel_data()
     return l3_image
