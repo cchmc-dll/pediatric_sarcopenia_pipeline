@@ -232,7 +232,7 @@ class ImageSeries:
 
     @property
     def pixel_data(self):
-        if not self._pixel_data:
+        if self._pixel_data is None:
             self._pixel_data = load_pixel_data_from_paths(
                 dicom_paths=list(self.series_path.iterdir())
             )
@@ -282,11 +282,16 @@ class ImageSeries:
     def slice_thickness(self):
         return float(self._first_dcm_dataset.SliceThickness)
 
+    # TODO this is actually pos in mm!!!
     def image_at_pos_in_px(self, pos):
         return self.pixel_data[self.image_index_at_pos(pos)]
 
     def image_index_at_pos(self, pos):
         return int(round(pos / self.slice_thickness))
+
+    @property
+    def number_of_dicoms(self):
+        return len(list(self.series_path.iterdir()))
 
 
 class Subject:

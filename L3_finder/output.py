@@ -28,18 +28,18 @@ def output_images(l3_images, args):
 
     image_outputter = functools.partial(_output_image, output_pipeline)
     print("Slow unless axial images already loaded...")
-    with multiprocessing.Pool(48) as pool:
-        # Could use map, but imap lets me get a progress bar
-        l3_images = list(
-            tqdm(
-                pool.imap(image_outputter, l3_images),
-                total=len(l3_images),
-            )
-        )
-        pool.close()
-        pool.join()
+    # with multiprocessing.Pool(48) as pool:
+        # # Could use map, but imap lets me get a progress bar
+        # l3_images = list(
+            # tqdm(
+                # pool.imap(image_outputter, l3_images),
+                # total=len(l3_images),
+            # )
+        # )
+        # pool.close()
+        # pool.join()
 
-    return l3_images
+    return [image_outputter(l3_image) for l3_image in tqdm(l3_images)]
 
 
 def _output_image(output_pipeline, l3_image):
@@ -49,7 +49,7 @@ def _output_image(output_pipeline, l3_image):
         pass
     finally:
         l3_image.free_pixel_data()
-        return l3_image
+    return l3_image
 
 
 def _ensure_output_dir_exists(output_dir):
@@ -141,29 +141,29 @@ def _make_image_uint16(old_image):
 def plot_l3_image(l3_image, output_args):
     try:
         _generate_l3_image_figure(l3_image)
-    except IndexError:
+    except IndexError as e:
         _generate_l3_prediction_out_of_bounds_figure(l3_image)
-    finally:
-        if output_args['should_save_plots']:
-            save_plot(
-                image=l3_image,
-                output_directory=output_args['output_directory'],
-                should_overwrite=output_args['should_overwrite']
-            )
 
-        if output_args['should_plot']:
-            plt.show()
+    if output_args['should_save_plots']:
+        save_plot(
+            image=l3_image,
+            output_directory=output_args['output_directory'],
+            should_overwrite=output_args['should_overwrite']
+        )
 
-        plt.close()
-        return l3_image
+    if output_args['should_plot']:
+        plt.show()
+
+    plt.close()
+    return l3_image
 
 
 def _generate_l3_image_figure(l3_image):
-    f, axarr = plt.subplots(1, 2)
-    axarr[0].imshow(l3_image.pixel_data, cmap='bone')
-    axarr[1].imshow(l3_image.prediction_result.display_image, cmap='bone')
-    plt.title(_in_bounds_title(l3_image))
-    return f, axarr
+    fig = plt.figure(figsize=(14,10))
+    plt.suptitle(_in_bounds_title(l3_image))
+    plt.figimage(l3_image.prediction_result.display_image, 25, 25, cmap='bone')
+    plt.figimage(l3_image.pixel_data, 600, 25, cmap='bone')
+    return fig
 
 
 def _generate_l3_prediction_out_of_bounds_figure(l3_image):
@@ -179,9 +179,16 @@ def _generate_l3_prediction_out_of_bounds_figure(l3_image):
 
 
 def _in_bounds_title(image):
-    return 'Subject: {} - Predicted slice: {}'.format(
-        image.subject_id, image.prediction_index
+    title = (
+        'Subject: {} - Predicted axial slice (dicom #): {} / {}\n'
+        'Predicted L3 in pixels: {}, {}'
+        .format(
+            image.subject_id, image.prediction_index, image.number_of_axial_dicoms,
+            image.predicted_y_in_px, image.height_of_sagittal_image
+        )
     )
+
+    return title
 
 
 def _out_of_bounds_title(image):

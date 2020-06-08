@@ -1,3 +1,5 @@
+from matplotlib import pyplot as plt
+
 from argparse import ArgumentParser
 from collections import namedtuple
 import itertools
@@ -120,8 +122,8 @@ def find_l3_images(args):
     sagittal_series, axial_series, excluded_series = separate_series(series)
 
     print("SHORTENING for development")
-    # sagittal_series = sagittal_series[:1000]
-    # axial_series = axial_series[:1000]
+    sagittal_series = sagittal_series[:10]
+    axial_series = axial_series[:10]
 
     print(
       "Series separated\n",
@@ -213,6 +215,14 @@ class L3Image(object):
         )
 
     @property
+    def height_of_sagittal_image(self):
+        return self.sagittal_series.resolution[0]
+
+    @property
+    def number_of_axial_dicoms(self):
+        return self.axial_series.number_of_dicoms
+
+    @property
     def subject_id(self):
         return self.axial_series.subject.id_
 
@@ -231,6 +241,10 @@ class L3Image(object):
             self.sagittal_series.series_path,
             self.axial_series.series_path,
         ]
+
+    @property
+    def predicted_y_in_px(self):
+        return self.prediction_result.prediction.predicted_y_in_px
 
     def free_pixel_data(self):
         """Frees the memory used in the underlying ImageSeries objects"""

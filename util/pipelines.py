@@ -24,7 +24,7 @@ def build_callable_that_loads_from_cache_or_runs_step(use_cache: bool, pipeline_
                 return results
 
         else:
-            return pipeline_step()
+            return pipeline_step(*args, **kwargs)
 
     return new_callable
 

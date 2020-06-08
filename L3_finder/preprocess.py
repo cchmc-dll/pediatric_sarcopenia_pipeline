@@ -1,3 +1,5 @@
+from matplotlib import pyplot as plt
+
 from collections import namedtuple
 import multiprocessing
 import os
@@ -157,7 +159,7 @@ PreprocessedImage = namedtuple(
 
 
 def preprocess_images(images, spacings):
-    for image, spacing in tqdm(zip(images, spacings), total=len(images)):
+    for image, spacing in zip(images, spacings):
         new_image = normalize_spacing(image, spacing)
         new_image = preprocess_to_8bit(new_image)
         height = new_image.shape[0]
