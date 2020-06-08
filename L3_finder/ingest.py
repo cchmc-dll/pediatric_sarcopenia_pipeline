@@ -1,3 +1,5 @@
+from matplotlib import pyplot as plt
+
 import csv
 import functools
 import multiprocessing
@@ -279,7 +281,6 @@ class ImageSeries:
     def slice_thickness(self):
         return float(self._any_dcm_dataset.SliceThickness)
 
-    # TODO this is actually pos in mm for some pictures...!!!
     def image_at_pos_in_px(self, pos, sagittal_start_z_pos):
         return self.pixel_data[self.image_index_at_pos(pos, sagittal_start_z_pos)]
 
@@ -296,11 +297,11 @@ class ImageSeries:
         # Finds the closest slice to calculated z_position
         return np.argmin(np.abs(series_z_positions - z_position))
 
-    @property
+    @reify
     def number_of_dicoms(self):
         return len(list(self.series_path.iterdir()))
 
-    @property
+    @reify
     def starting_z_pos(self):
         return np.float(self.datasets_in_order[0][self.position_key][self.z_pos_key])
 
