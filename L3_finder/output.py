@@ -1,5 +1,6 @@
 import csv
 import functools
+import multiprocessing
 from pathlib import Path
 import sys
 
@@ -8,6 +9,8 @@ import toolz
 from matplotlib import pyplot as plt
 from imageio import imsave
 from tables import open_file
+from tqdm import tqdm
+
 
 
 def output_images(l3_images, args):
@@ -23,15 +26,30 @@ def output_images(l3_images, args):
         args=args, images_dir_path=images_dir_path, csv_path=csv_path
     )
 
-    for l3_image in l3_images:
-        try:
-            toolz.pipe(l3_image, *output_pipeline)
-        except IndexError as e:
-            print(
-                "Index error when outputting subject",
-                l3_image.subject_id,
-                file=sys.stderr
+    image_outputter = functools.partial(_output_image, output_pipeline)
+    print("Slow unless axial images already loaded...")
+    with multiprocessing.Pool(48) as pool:
+        # Could use map, but imap lets me get a progress bar
+        l3_images = list(
+            tqdm(
+                pool.imap(image_outputter, l3_images),
+                total=len(l3_images),
             )
+        )
+        pool.close()
+        pool.join()
+
+    return l3_images
+
+
+def _output_image(output_pipeline, l3_image):
+    try:
+        toolz.pipe(l3_image, *output_pipeline)
+    except IndexError as e:
+        pass
+    finally:
+        l3_image.free_pixel_data()
+        return l3_image
 
 
 def _ensure_output_dir_exists(output_dir):

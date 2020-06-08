@@ -2,10 +2,12 @@ from argparse import ArgumentParser
 from collections import namedtuple
 import itertools
 import sys
+
 import toolz
+from tqdm import tqdm
 
 
-from L3_finder.ingest import find_subjects, separate_series
+from L3_finder.ingest import find_subjects, separate_series, load_series_to_skip_pickle_file, remove_series_to_skip
 from L3_finder.output import output_l3_images_to_h5, output_images
 
 
@@ -61,6 +63,24 @@ def parse_args():
              'axial slice at that level '
     )
 
+    parser.add_argument(
+        "--series_to_skip_pickle_file",
+        help="Pickle file of series dumped from identify_broken_dicoms.py"
+    )
+
+    parser.add_argument(
+        '--cache_intermediate_results',
+        action='store_true',
+        help='If true, will cache the results of some of the longer running '
+             'computations in the passed --cache_dir. Note: there is no check to make'
+             'sure that you actually passed a dir'
+    )
+
+    parser.add_argument(
+        "--cache_dir",
+        help="Directory to store cached files in. If none given, no caching"
+    )
+
     return parser.parse_args()
 
 
@@ -99,6 +119,10 @@ def find_l3_images(args):
     print("Separating series")
     sagittal_series, axial_series, excluded_series = separate_series(series)
 
+    print("SHORTENING for development")
+    # sagittal_series = sagittal_series[:1000]
+    # axial_series = axial_series[:1000]
+
     print(
       "Series separated\n",
       len(sagittal_series), "sagittal series.",
@@ -106,14 +130,23 @@ def find_l3_images(args):
       len(excluded_series), "excluded series."
     )
 
+    if args.series_to_skip_pickle_file:
+        print("Removing unwanted series")
+        series_to_skip = load_series_to_skip_pickle_file(args.series_to_skip_pickle_file)
+        sagittal_series = remove_series_to_skip(series_to_skip, sagittal_series)
+        axial_series = remove_series_to_skip(series_to_skip, axial_series)
+
     print("Importing things that need tensorflow...")
     from L3_finder.predict import make_predictions_for_images
-    from L3_finder.preprocess import create_sagittal_mip, preprocess_images, group_mips_by_dimension
+    from L3_finder.preprocess import create_sagittal_mip, preprocess_images, group_mips_by_dimension, create_sagittal_mips_from_series
 
     print("Creating sagittal MIPS")
-    mips = (create_sagittal_mip(series.pixel_data) for series in
-            sagittal_series)
-    spacings = (series.spacing for series in sagittal_series)
+    mips = create_sagittal_mips_from_series(
+        many_series=sagittal_series,
+        cache_dir=args.cache_dir,
+        cache=args.cache_intermediate_results,
+    )
+    spacings = [series.spacing for series in sagittal_series]
 
     print("Preprocessing Images")
     preprocessed_images = preprocess_images(images=mips, spacings=spacings)
@@ -157,13 +190,13 @@ def build_l3_images(axial_series, sagittal_series, prediction_results):
         rightkey=lambda sag_with_res: sag_with_res[0].subject.id_,
         rightseq=sagittals_with_results
     )
-    l3_images = (
+    l3_images = [
         L3Image(
             sagittal_series=sag,
             axial_series=ax,
             prediction_result=result)
         for ax, (sag, result) in axials_with_sagittals_and_results
-    )
+    ]
     return l3_images
 
 
@@ -198,6 +231,11 @@ class L3Image(object):
             self.sagittal_series.series_path,
             self.axial_series.series_path,
         ]
+
+    def free_pixel_data(self):
+        """Frees the memory used in the underlying ImageSeries objects"""
+        self.axial_series.free_pixel_data()
+        self.sagittal_series.free_pixel_data()
 
 
 if __name__ == "__main__":

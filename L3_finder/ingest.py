@@ -7,6 +7,7 @@ import sys
 import warnings
 import numpy as np
 from pathlib import Path
+import pickle
 import pydicom
 from tqdm import tqdm
 
@@ -81,27 +82,6 @@ class MissingImage(RuntimeError):
 
 def load_pixel_data_from_paths(dicom_paths):
     """ Calculates"""
-    # first_dataset = pydicom.dcmread(str(dicom_paths[0]))
-    # first_image = first_dataset.pixel_array
-    # image_dimensions = first_image.shape
-    # out_array = np.zeros(
-        # shape=(len(dicom_paths), image_dimensions[0], image_dimensions[1]),
-        # dtype=first_image.dtype
-    # )
-
-    # # First loaded path not guaranteed first image in series
-    # index = int(first_dataset.InstanceNumber) - 1
-    # try:
-        # out_array[index] = first_image
-        # datasets = (pydicom.dcmread(str(path)) for path in dicom_paths[1:])
-        # for dataset in datasets:
-            # index = int(dataset.InstanceNumber) - 1
-            # out_array[index] = dataset.pixel_array
-    # except IndexError:
-        # out_array = np.resize(out_array, (index + 1, image_dimensions[0], image_dimensions[1]))
-    # except ValueError as e:
-        # import pdb; pdb.set_trace()
-    # return out_array
     datasets = list(
         sorted(
             (pydicom.dcmread(str(p)) for p in dicom_paths),
@@ -109,7 +89,7 @@ def load_pixel_data_from_paths(dicom_paths):
         )
     )
 
-    first_dataset = pydicom.dcmread(str(dicom_paths[0]))
+    first_dataset = datasets[0]
     first_image = first_dataset.pixel_array
     image_dimensions = first_image.shape
 
@@ -247,14 +227,20 @@ class ImageSeries:
         self.subject = subject
         self.series_path = series_path
         self.accession_path = accession_path
-
+        self._pixel_data = None
         self._first_dataset = None
 
     @property
     def pixel_data(self):
-        return load_pixel_data_from_paths(
-            dicom_paths=list(self.series_path.iterdir())
-        )
+        if not self._pixel_data:
+            self._pixel_data = load_pixel_data_from_paths(
+                dicom_paths=list(self.series_path.iterdir())
+            )
+        return self._pixel_data
+
+    def free_pixel_data(self):
+        """Use to free memory if too much pixel_data"""
+        self._pixel_data = None
 
     @reify
     def spacing(self):
@@ -386,7 +372,7 @@ def separate_series(series):
             if keep
         ]
 
-    with multiprocessing.Pool(12) as p:
+    with multiprocessing.Pool(multiprocessing.cpu_count()) as p:
         sagittal_series = pool_filter(p, sag_filter, series)
         axial_series = pool_filter(p, axial_filter, series)
 
@@ -399,4 +385,14 @@ def same_orientation(series, orientation, excluded_series):
     except UnknownOrientation as e:
         excluded_series.append(e)
         return False
+
+
+def load_series_to_skip_pickle_file(path):
+    with open(path, "rb") as f:
+        return pickle.load(f)
+
+def remove_series_to_skip(series_to_skip, input_series):
+    series_paths_to_skip = set(s.series_path for s, _ in series_to_skip)
+
+    return [s for s in input_series if s.series_path not in series_paths_to_skip]
 

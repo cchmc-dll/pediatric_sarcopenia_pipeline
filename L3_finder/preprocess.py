@@ -1,13 +1,18 @@
 from collections import namedtuple
+import multiprocessing
+import os
+import pickle
 
 import SimpleITK as sitk
 import cv2
 import numpy as np
 from scipy.ndimage import zoom
 import toolz
+from tqdm import tqdm
 
 from ct_slice_detection.io.preprocessing import preprocess_to_8bit
 from ct_slice_detection.utils.testing_utils import preprocess_test_image
+from util.pipelines import CachablePipelineStep, build_callable_that_loads_from_cache_or_runs_step
 
 
 def create_mip_from_path(path):
@@ -92,6 +97,56 @@ def handle_ydata(ydata):
         return ydata['A']
 
 
+def create_sagittal_mips_from_series(many_series, cache_dir="", cache=True):
+    sagittal_mip_creator = build_callable_that_loads_from_cache_or_runs_step(
+        pipeline_step=CreateSagittalMIPsStep(cache_dir),
+        use_cache=cache,
+    )
+
+    return sagittal_mip_creator(many_series)
+
+
+class CreateSagittalMIPsStep(CachablePipelineStep):
+    def __init__(self, cache_dir):
+        self._cache_dir = cache_dir
+        self._cache_file_name = "_sagittal_mips.pkl"
+
+    def load(self):
+        with open(self._cache_pickle_path, "rb") as f:
+            print("Loading Sagittal MIPs from the cache at:", self._cache_pickle_path)
+            return pickle.load(f)
+
+    @property
+    def _cache_pickle_path(self):
+        return os.path.join(self._cache_dir, self._cache_file_name)
+
+    def __call__(self, many_series):
+        return _create_sagittal_mips_from_series(many_series)
+
+    def save(self, sagittal_mips):
+        with open(self._cache_pickle_path, "wb") as f:
+            return pickle.dump(sagittal_mips, f)
+
+
+def _create_sagittal_mips_from_series(many_series):
+    with multiprocessing.Pool(multiprocessing.cpu_count()) as pool:
+        # Could use map, but imap lets me get a progress bar
+        mips = list(
+            tqdm(
+                pool.imap(_load_image_and_create_mip, many_series),
+                total=len(many_series),
+            )
+        )
+        pool.close()
+        pool.join()
+
+    return mips
+
+
+def _load_image_and_create_mip(one_series):
+    return create_sagittal_mip(one_series.pixel_data)
+
+
 def create_sagittal_mip(sagittal_series_data):
     return create_mip(slice_middle_images(sagittal_series_data))
 
@@ -102,7 +157,7 @@ PreprocessedImage = namedtuple(
 
 
 def preprocess_images(images, spacings):
-    for image, spacing in zip(images, spacings):
+    for image, spacing in tqdm(zip(images, spacings), total=len(images)):
         new_image = normalize_spacing(image, spacing)
         new_image = preprocess_to_8bit(new_image)
         height = new_image.shape[0]
