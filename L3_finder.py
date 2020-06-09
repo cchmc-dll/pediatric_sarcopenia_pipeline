@@ -8,9 +8,9 @@ import sys
 import toolz
 from tqdm import tqdm
 
-
 from L3_finder.ingest import find_subjects, separate_series, load_series_to_skip_pickle_file, remove_series_to_skip
 from L3_finder.output import output_l3_images_to_h5, output_images
+from util.reify import reify
 
 
 SagittalMIP = namedtuple("SagittalMIP", "series image")
@@ -121,7 +121,7 @@ def find_l3_images(args):
     print("Separating series")
     sagittal_series, axial_series, excluded_series = separate_series(series)
 
-    print("SHORTENING for development")
+    # print("SHORTENING for development")
     # sagittal_series = sagittal_series[:10]
     # axial_series = axial_series[:10]
     # investigate = set(["11", "26", "29"])
@@ -229,7 +229,7 @@ class L3Image(object):
     def subject_id(self):
         return self.axial_series.subject.id_
 
-    @property
+    @reify
     def prediction_index(self):
         return self.axial_series.image_index_at_pos(
             self.prediction_result.prediction.predicted_y_in_px,
@@ -238,13 +238,16 @@ class L3Image(object):
 
     def as_csv_row(self):
         prediction = self.prediction_result.prediction
-        return [
-            self.subject_id,
+        prediction_index, l3_axial_slice_metadata = self.prediction_index
+        row = [
+            self.axial_series.id_,
             prediction.predicted_y_in_px,
             prediction.probability,
             self.sagittal_series.series_path,
             self.axial_series.series_path,
         ]
+        row.extend(l3_axial_slice_metadata.as_csv_row())
+        return row
 
     @property
     def predicted_y_in_px(self):

@@ -29,19 +29,19 @@ def output_images(l3_images, args):
     image_outputter = functools.partial(_output_image, output_pipeline)
     print("Slow unless axial images already loaded...")
 
-    # with multiprocessing.Pool(48) as pool:
-        # # Could use map, but imap lets me get a progress bar
-        # l3_images = list(
-            # tqdm(
-                # pool.imap(image_outputter, l3_images),
-                # total=len(l3_images),
-            # )
-        # )
-        # pool.close()
-        # pool.join()
-    # return l3_images
+    with multiprocessing.Pool(48) as pool:
+        # Could use map, but imap lets me get a progress bar
+        l3_images = list(
+            tqdm(
+                pool.imap(image_outputter, l3_images),
+                total=len(l3_images),
+            )
+        )
+        pool.close()
+        pool.join()
+    return l3_images
 
-    return [image_outputter(l3_image) for l3_image in tqdm(l3_images)]
+    # return [image_outputter(l3_image) for l3_image in tqdm(l3_images)]
 
 
 def _output_image(output_pipeline, l3_image):
@@ -74,11 +74,17 @@ def _write_prediction_csv_header(csv_path, should_overwrite):
         writer = csv.writer(f)
         writer.writerow(
             [
-                'subject_id',
+                'image_id',
                 'predicted_y_in_px',
                 'probability',
                 'sagittal_series_path',
                 'axial_series_path',
+                'sagittal_z_start_pos',
+                'predicted_z_position',
+                'first_axial_pos',
+                'last_axial_pos',
+                'l3_axial_image_index',
+                'axial_image_count',
             ]
         )
 
@@ -115,8 +121,8 @@ def _create_directory_for_l3_image(base_dir, l3_image, should_overwrite):
 
 
 def _save_l3_image_to_png(image_dir, l3_image, should_overwrite):
-    file_name = 'subject_{subject_id}_IM-CT-{image_number}.png'.format(
-        subject_id=l3_image.subject_id,
+    file_name = 'subject_{image_id}_IM-CT-{image_number}.png'.format(
+        image_id=l3_image.axial_series.id_,
         image_number=l3_image.prediction_index
     )
     save_path = Path(image_dir, file_name)
@@ -203,7 +209,7 @@ def save_plot(image, output_directory, should_overwrite):
     plots_dir = Path(output_directory, 'plots')
     plots_dir.mkdir(exist_ok=should_overwrite)
 
-    file_name = '{}-plot.png'.format(image.subject_id)
+    file_name = '{}-plot.png'.format(image.axial_series.id_)
     plt.savefig(str(plots_dir.joinpath(file_name)))
 
 
