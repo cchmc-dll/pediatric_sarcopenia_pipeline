@@ -237,6 +237,13 @@ class ImageSeries:
     series_path = attr.ib()
     accession_path = attr.ib()
 
+    @reify
+    def id_(self):
+        return "{subject_id}-{series_name}".format(
+            subject_id=self.subject.id_,
+            series_name=self.series_path.name
+        )
+
     @property
     def pixel_data(self):
         if self._pixel_data is None:
@@ -284,7 +291,8 @@ class ImageSeries:
         return float(self._any_dcm_dataset.SliceThickness)
 
     def image_at_pos_in_px(self, pos, sagittal_start_z_pos):
-        return self.pixel_data[self.image_index_at_pos(pos, sagittal_start_z_pos)]
+        l3_axial_index, _ = self.image_index_at_pos(pos, sagittal_start_z_pos)
+        return self.pixel_data[l3_axial_index]
 
     # Need to undo the spacing normalization, which is done using sagittal spacing[2]
     def image_index_at_pos(self, pos_with_1mm_spacing, sagittal_start_z_pos):
@@ -297,7 +305,18 @@ class ImageSeries:
         z_position = sagittal_start_z_pos + pos_with_1mm_spacing*direction
 
         # Finds the closest slice to calculated z_position
-        return np.argmin(np.abs(series_z_positions - z_position))
+        l3_axial_image_index = np.argmin(np.abs(series_z_positions - z_position))
+
+        metadata = L3AxialSliceMetadata(
+            sagittal_start_z_pos=sagittal_start_z_pos,
+            predicted_z_position=z_position,
+            first_axial_pos=series_z_positions[0],
+            last_axial_pos=series_z_positions[-1],
+            l3_axial_image_index=l3_axial_image_index,
+            axial_image_count=len(series_z_positions),
+        )
+
+        return l3_axial_image_index, metadata
 
     @reify
     def number_of_dicoms(self):
@@ -314,6 +333,28 @@ class ImageSeries:
             key=lambda ds: int(ds.InstanceNumber)
         )
 
+
+class L3AxialSliceMetadata:
+    def __init__(
+        self, sagittal_start_z_pos, first_axial_pos, last_axial_pos,
+        l3_axial_image_index, axial_image_count, predicted_z_position
+    ):
+        self.sagittal_start_z_pos = sagittal_start_z_pos
+        self.first_axial_pos = first_axial_pos
+        self.last_axial_pos = last_axial_pos
+        self.l3_axial_image_index = l3_axial_image_index
+        self.axial_image_count = axial_image_count
+        self.predicted_z_position = predicted_z_position
+
+    def as_csv_row(self):
+        return [
+            self.sagittal_start_z_pos,
+            self.predicted_z_position,
+            self.first_axial_pos,
+            self.last_axial_pos,
+            self.l3_axial_image_index,
+            self.axial_image_count,
+        ]
 
 
 @attr.s

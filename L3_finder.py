@@ -7,9 +7,11 @@ import sys
 import attr
 import toolz
 
+
 from l3finder.ingest import find_subjects, separate_series, \
     load_series_to_skip_pickle_file, remove_series_to_skip
 from l3finder.output import output_l3_images_to_h5, output_images
+from util.reify import reify
 
 
 @attr.s
@@ -232,7 +234,7 @@ class L3Image:
     def subject_id(self):
         return self.axial_series.subject.id_
 
-    @property
+    @reify
     def prediction_index(self):
         return self.axial_series.image_index_at_pos(
             self.prediction_result.prediction.predicted_y_in_px,
@@ -241,13 +243,16 @@ class L3Image:
 
     def as_csv_row(self):
         prediction = self.prediction_result.prediction
-        return [
-            self.subject_id,
+        prediction_index, l3_axial_slice_metadata = self.prediction_index
+        row = [
+            self.axial_series.id_,
             prediction.predicted_y_in_px,
             prediction.probability,
             self.sagittal_series.series_path,
             self.axial_series.series_path,
         ]
+        row.extend(l3_axial_slice_metadata.as_csv_row())
+        return row
 
     @property
     def predicted_y_in_px(self):
