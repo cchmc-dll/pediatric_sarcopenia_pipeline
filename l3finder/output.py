@@ -170,7 +170,7 @@ def _generate_l3_image_figure(l3_image):
 
 def _generate_l3_prediction_out_of_bounds_figure(l3_image):
     print(
-        "Prediction: {predicted_y}cm is out of bounds of image for "
+        "Prediction: {predicted_y}cm is out of bounds of preprocessed_image for "
         "subject_id: {id_}".format(
             predicted_y=l3_image.prediction_result.prediction.predicted_y_in_px,
             id_=l3_image.axial_series.subject.id_

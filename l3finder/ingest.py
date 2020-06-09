@@ -7,9 +7,11 @@ import os
 import subprocess
 import sys
 import warnings
-import numpy as np
 from pathlib import Path
 import pickle
+
+import attr
+import numpy as np
 import pydicom
 from tqdm import tqdm
 
@@ -113,7 +115,7 @@ def find_images_and_ydata_in_l3_finder_training_format(
     study_images = list(find_study_images(dataset_path, manifest_csv))
     sagittal_spacings = find_sagittal_image_spacings(study_images, dataset_path)
     names = np.array([image.name for image in study_images], dtype='object')
-    ydata = dict(A=find_axial_l3_offsets(study_images))  # One person picked the L3s for this image -> person A
+    ydata = dict(A=find_axial_l3_offsets(study_images))  # One person picked the L3s for this preprocessed_image -> person A
 
     print("Creating sagittal mips...", file=sys.stderr)
     sagittal_mips, invalid_images = create_sagittal_mips_from_study_images(study_images)
@@ -224,16 +226,16 @@ class UnknownOrientation(Exception):
         self.series = series
 
 
+@attr.s
 class ImageSeries:
     position_key = (0x0020, 0x0032)
     z_pos_key = 2
+    _pixel_data = None
+    _first_dataset = None
 
-    def __init__(self, subject, series_path, accession_path):
-        self.subject = subject
-        self.series_path = series_path
-        self.accession_path = accession_path
-        self._pixel_data = None
-        self._first_dataset = None
+    subject = attr.ib()
+    series_path = attr.ib()
+    accession_path = attr.ib()
 
     @property
     def pixel_data(self):
@@ -314,9 +316,9 @@ class ImageSeries:
 
 
 
+@attr.s
 class Subject:
-    def __init__(self, path):
-        self.path = path
+    path = attr.ib()
 
     @property
     def id_(self):
@@ -332,9 +334,9 @@ class Subject:
                 )
 
 
+@attr.s
 class NoSubjectDirSubject:
-    def __init__(self, path):
-        self.path = path
+    path = attr.ib()
 
     @property
     def id_(self):
@@ -362,7 +364,7 @@ def find_series(subject):
 
 def create_sagittal_mips_from_study_images(study_images):
     # done here so you can require this module w/o loading tensorflow
-    from L3_finder.preprocess import create_sagittal_mip
+    from l3finder.preprocess import create_sagittal_mip
     invalid_images = []
     mips = []
     for image in tqdm(study_images):

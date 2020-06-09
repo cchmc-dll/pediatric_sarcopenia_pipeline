@@ -1,7 +1,7 @@
 from pathlib import Path
 from os.path import join
 import pydicom
-# from L3_finder.ingest import *
+# from l3finder.ingest import *
 
 ds_path = Path(r"\\vnas1\root1\Radiology\SHARED\Elan\Projects\Skeletal Muscle Project\combined_dataset")
 print(ds_path.exists())

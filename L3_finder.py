@@ -1,19 +1,25 @@
 from matplotlib import pyplot as plt
 
 from argparse import ArgumentParser
-from collections import namedtuple
 import itertools
 import sys
 
+import attr
 import toolz
-from tqdm import tqdm
+
+from l3finder.ingest import find_subjects, separate_series, \
+    load_series_to_skip_pickle_file, remove_series_to_skip
+from l3finder.output import output_l3_images_to_h5, output_images
 
 
-from L3_finder.ingest import find_subjects, separate_series, load_series_to_skip_pickle_file, remove_series_to_skip
-from L3_finder.output import output_l3_images_to_h5, output_images
+@attr.s
+class SagittalMIP:
+    series = attr.ib()
+    preprocessed_image = attr.ib()
 
-
-SagittalMIP = namedtuple("SagittalMIP", "series image")
+    @property
+    def subject_id(self):
+        return self.series.subject.id_
 
 
 def parse_args():
@@ -25,7 +31,7 @@ def parse_args():
         help='Root directory containing dicoms in format output by Tim\'s '
              'script. That is subject_1/accession_xyz/series{sagittal & '
              'axial}. The accession directory should contain both a sagittal '
-             'image series and an axial image series. '
+             'preprocessed_image series and an axial preprocessed_image series. '
     )
     parser.add_argument(
         '--new_tim_dicom_dir_structure',
@@ -91,7 +97,6 @@ def main():
 
     l3_images = find_l3_images(args)
 
-
     print("Outputting images")
     output_images(
         l3_images,
@@ -121,29 +126,31 @@ def find_l3_images(args):
     print("Separating series")
     sagittal_series, axial_series, excluded_series = separate_series(series)
 
-    print("SHORTENING for development")
+    # print("SHORTENING for development")
     # sagittal_series = sagittal_series[:10]
     # axial_series = axial_series[:10]
-    # investigate = set(["11", "26", "29"])
+    # investigate = set(["56"])
     # sagittal_series = [s for s in sagittal_series if s.subject.id_ in investigate]
     # axial_series = [s for s in axial_series if s.subject.id_ in investigate]
 
     print(
-      "Series separated\n",
-      len(sagittal_series), "sagittal series.",
-      len(axial_series), "axial series.",
-      len(excluded_series), "excluded series."
+        "Series separated\n",
+        len(sagittal_series), "sagittal series.",
+        len(axial_series), "axial series.",
+        len(excluded_series), "excluded series."
     )
 
     if args.series_to_skip_pickle_file:
         print("Removing unwanted series")
-        series_to_skip = load_series_to_skip_pickle_file(args.series_to_skip_pickle_file)
+        series_to_skip = load_series_to_skip_pickle_file(
+            args.series_to_skip_pickle_file)
         sagittal_series = remove_series_to_skip(series_to_skip, sagittal_series)
         axial_series = remove_series_to_skip(series_to_skip, axial_series)
 
     print("Importing things that need tensorflow...")
-    from L3_finder.predict import make_predictions_for_images
-    from L3_finder.preprocess import create_sagittal_mip, preprocess_images, group_mips_by_dimension, create_sagittal_mips_from_series
+    from l3finder.predict import make_predictions_for_sagittal_mips
+    from l3finder.preprocess import create_sagittal_mip, preprocess_images, \
+        group_mips_by_dimension, create_sagittal_mips_from_series
 
     print("Creating sagittal MIPS")
     mips = create_sagittal_mips_from_series(
@@ -168,17 +175,14 @@ def find_l3_images(args):
 
     print("Making predictions")
     prediction_results = []
-    for dimension, mips in mips_by_dimension.items():
-        dim_group_results = make_predictions_for_images(
-            (mip.image for mip in mips),
+    for dimension, sagittal_mips in mips_by_dimension.items():
+        dim_group_results = make_predictions_for_sagittal_mips(
+            sagittal_mips,
             model_path=args.model_path,
             shape=dimension,
         )
         prediction_results.extend(dim_group_results)
-
-    l3_images = build_l3_images(
-        axial_series, sagittal_series, prediction_results
-    )
+    l3_images = build_l3_images(axial_series, prediction_results)
     return l3_images
 
 
@@ -186,29 +190,28 @@ def flatten(sequence):
     return itertools.chain(*sequence)
 
 
-def build_l3_images(axial_series, sagittal_series, prediction_results):
-    sagittals_with_results = zip(sagittal_series, prediction_results)
-    axials_with_sagittals_and_results = toolz.join(
+def build_l3_images(axial_series, prediction_results):
+    axials_with_prediction_results = toolz.join(
         leftkey=lambda ax: ax.subject.id_,
         leftseq=axial_series,
-        rightkey=lambda sag_with_res: sag_with_res[0].subject.id_,
-        rightseq=sagittals_with_results
+        rightkey=lambda pred_res: pred_res.input_mip.subject_id,
+        rightseq=prediction_results
     )
     l3_images = [
         L3Image(
-            sagittal_series=sag,
+            sagittal_series=result.input_mip.series,
             axial_series=ax,
             prediction_result=result)
-        for ax, (sag, result) in axials_with_sagittals_and_results
+        for ax, result in axials_with_prediction_results
     ]
     return l3_images
 
 
-class L3Image(object):
-    def __init__(self, axial_series, sagittal_series, prediction_result):
-        self.axial_series = axial_series
-        self.sagittal_series = sagittal_series
-        self.prediction_result = prediction_result
+@attr.s
+class L3Image:
+    axial_series = attr.ib()
+    sagittal_series = attr.ib()
+    prediction_result = attr.ib()
 
     @property
     def pixel_data(self):

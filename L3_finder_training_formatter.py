@@ -2,7 +2,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 import numpy as np
 
-from L3_finder.ingest import find_images_and_ydata_in_l3_finder_training_format, FormatL3DatasetStep
+from l3finder.ingest import find_images_and_ydata_in_l3_finder_training_format, FormatL3DatasetStep
 from util.pipelines import build_callable_that_loads_from_cache_or_runs_step
 
 

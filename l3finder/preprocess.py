@@ -54,7 +54,7 @@ def normalize_to_8bit(image_data):
 def resize_for_nn(image_data):
     # scale_factor = 384 / image_data.shape[0]
     # target = (image_data.shape[0] * scale_factor, image_data.shape[1] * scale_factor)
-    assert image_data.shape[0] == image_data.shape[1], ' Should be square image'
+    assert image_data.shape[0] == image_data.shape[1], ' Should be square preprocessed_image'
     scaled = cv2.resize(image_data, (384, 384), interpolation=cv2.INTER_AREA)
     trim_amount = (384 - 256) // 2
     return scaled[:, trim_amount:-trim_amount]
@@ -178,7 +178,7 @@ def expand_axes(image):
 
 def group_mips_by_dimension(mips):
     def dimension_from_sagittal_mip(sag_mip):
-        return sag_mip.image.pixel_data.shape
+        return sag_mip.preprocessed_image.pixel_data.shape
     return toolz.groupby(dimension_from_sagittal_mip, mips)
 
 

@@ -1,29 +1,33 @@
+import attr
 from matplotlib import pyplot as plt
 
 import sys
 from collections import namedtuple
 import numpy as np
 from skimage.draw import line
-from tqdm import tqdm
 
 from ct_slice_detection.models.detection import build_prediction_model
 from ct_slice_detection.utils.testing_utils import predict_slice
-from util.iterable import batch_to_ndarray
 
 Output = namedtuple('OutputData', ['prediction', 'image_with_predicted_line'])
-Result = namedtuple('Result', ['prediction', 'display_image'])
 
 
-def make_predictions_for_images(preprocessed_images, model_path, shape):
+@attr.s
+class Result:
+    prediction = attr.ib()
+    display_image = attr.ib()
+    input_mip = attr.ib()
+
+
+def make_predictions_for_sagittal_mips(sagittal_mips, model_path, shape):
     model = load_model(model_path)
 
     # can't fit every picture in memory, so have to do this unfortunately
-    images = []
-    unpadded_heights = []
-    for i in preprocessed_images:
-        images.append(i.pixel_data)
-        unpadded_heights.append(i.unpadded_height)
-    images = np.array(images, dtype=np.int8)
+    images = np.empty(shape=(len(sagittal_mips), *shape), dtype=np.int8)
+    unpadded_heights = np.empty(shape=len(sagittal_mips), dtype=np.int32)
+    for index, mip in enumerate(sagittal_mips):
+        images[index] = mip.preprocessed_image.pixel_data
+        unpadded_heights[index] = mip.preprocessed_image.unpadded_height
 
     predictions = predict_batch(images, model)
 
@@ -39,21 +43,11 @@ def make_predictions_for_images(preprocessed_images, model_path, shape):
     ]
 
     return [
-        Result(prediction, display_image)
-        for prediction, display_image
-        in zip(predictions, display_images)
+        Result(prediction, display_image, input_mip)
+        for prediction, display_image, input_mip
+        in zip(predictions, display_images, sagittal_mips)
     ]
 
-    # for image, unpadded_height in tqdm(preprocessed_images):
-        # prediction = make_prediction(model, image)
-        # unpadded_image, _ = undo_padding(prediction, unpadded_height)
-
-        # display_image = draw_line_on_predicted_image(
-            # prediction,
-            # unpadded_image,
-            # console=tqdm
-        # )
-        # yield Result(prediction, display_image)
 
 def predict_batch(batch, model):
     predictions = model.predict(batch)
@@ -68,7 +62,7 @@ def predict_batch(batch, model):
 
 Prediction = namedtuple(
     'Prediction',
-    ['predicted_y_in_px', 'probability', 'prediction_map', 'image']
+    ['predicted_y_in_px', 'probability', 'prediction_map', 'preprocessed_image']
 )
 
 
@@ -87,10 +81,9 @@ def make_prediction(model, image):
 
 
 def undo_padding(prediction, image_height):
-    image = prediction.image
+    image = prediction.preprocessed_image
     prediction_map = prediction.prediction_map
 
-    # for image, first index is actually the column...
     return image[:image_height, :, :], prediction_map[:image_height, :],
 
 
@@ -107,7 +100,7 @@ def draw_line_on_predicted_image(prediction, unpadded_image):
     try:
         output[rr, cc] = np.iinfo(output.dtype).max
     except IndexError:
-        print("error drawing line on image for:", file=sys.stderr)
+        print("error drawing line on preprocessed_image for:", file=sys.stderr)
         print(
             "shape: {}, prediction: {}\n".format(
                 unpadded_image.shape, prediction.predicted_y_in_px

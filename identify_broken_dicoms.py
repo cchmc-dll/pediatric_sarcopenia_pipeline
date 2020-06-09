@@ -1,6 +1,6 @@
 from argparse import ArgumentParser
 import itertools
-from L3_finder.ingest import find_subjects, separate_series
+from l3finder.ingest import find_subjects, separate_series
 import multiprocessing
 import pickle
 
@@ -13,7 +13,7 @@ def parse_args():
         help='Root directory containing dicoms in format output by Tim\'s '
              'script. That is subject_1/accession_xyz/series{sagittal & '
              'axial}. The accession directory should contain both a sagittal '
-             'image series and an axial image series. '
+             'image series and an axial preprocessed_image series. '
     )
     parser.add_argument(
         '--pickle_dump_path',

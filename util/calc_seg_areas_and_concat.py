@@ -23,7 +23,7 @@ def parse_args(argv):
         help='Root directory containing dicoms in format output by Tim\'s '
              'script. That is subject_1/accession_xyz/series{sagittal & '
              'axial}. The accession directory should contain both a sagittal '
-             'image series and an axial image series. '
+             'preprocessed_image series and an axial preprocessed_image series. '
     )
 
     parser.add_argument(
@@ -37,7 +37,7 @@ def parse_args(argv):
     parser.add_argument(
         '--segmentation_image_name',
         required=True,
-        help='Name of the segmentation image, include extension'
+        help='Name of the segmentation preprocessed_image, include extension'
              'ex: predition.tif'
     )
 

@@ -9,7 +9,7 @@ import imageio
 import numpy as np
 import toolz
 
-from L3_finder.ingest import find_subjects, find_series
+from l3finder.ingest import find_subjects, find_series
 
 
 def main(argv):
