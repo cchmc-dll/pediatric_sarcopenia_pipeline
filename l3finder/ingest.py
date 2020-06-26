@@ -291,16 +291,27 @@ class ImageSeries:
         return float(self._any_dcm_dataset.SliceThickness)
 
     def image_at_pos_in_px(self, pos, sagittal_start_z_pos):
-        l3_axial_index, _ = self.image_index_at_pos(pos, sagittal_start_z_pos)
-        return self.pixel_data[l3_axial_index]
+        l3_axial_index, metadata = self.image_index_at_pos(pos, sagittal_start_z_pos)
+
+        if self._pixel_data is None:
+            return pydicom.read_file(metadata.l3_axial_image_dcm_path).pixel_array
+        else:
+            return self.pixel_data[l3_axial_index]
 
     # Need to undo the spacing normalization, which is done using sagittal spacing[2]
     def image_index_at_pos(self, pos_with_1mm_spacing, sagittal_start_z_pos):
         """1mm spacing is the default coming out of the preprocessing"""
-        series_z_positions = np.array([
-            np.float(ds[self.position_key][self.z_pos_key])
-            for ds in self.datasets_in_order
-        ])
+        dataset_path_pairs = self.dataset_path_pairs_in_order
+
+        length = len(dataset_path_pairs)
+        series_z_positions = np.empty(
+            shape=len(dataset_path_pairs), dtype=np.float32
+        )
+        dicom_paths = np.empty(shape=length, dtype="object")
+        for index, (dataset, path) in enumerate(dataset_path_pairs):
+            series_z_positions[index] = dataset[self.position_key][self.z_pos_key]
+            dicom_paths[index] = path
+
         direction = np.sign(series_z_positions[-1] - series_z_positions[0])
         z_position = sagittal_start_z_pos + pos_with_1mm_spacing*direction
 
@@ -314,6 +325,7 @@ class ImageSeries:
             last_axial_pos=series_z_positions[-1],
             l3_axial_image_index=l3_axial_image_index,
             axial_image_count=len(series_z_positions),
+            l3_axial_image_dcm_path=dicom_paths[l3_axial_image_index],
         )
 
         return l3_axial_image_index, metadata
@@ -324,27 +336,26 @@ class ImageSeries:
 
     @reify
     def starting_z_pos(self):
-        return np.float(self.datasets_in_order[0][self.position_key][self.z_pos_key])
+        first_dataset = self.dataset_path_pairs_in_order[0][0]
+        return np.float(first_dataset[self.position_key][self.z_pos_key])
 
     @property
-    def datasets_in_order(self):
+    def dataset_path_pairs_in_order(self):
         return sorted(
-            (pydicom.dcmread(str(p)) for p in self.series_path.iterdir()),
-            key=lambda ds: int(ds.InstanceNumber)
+            ((pydicom.dcmread(str(p)), p) for p in self.series_path.iterdir()),
+            key=lambda ds_path_pair: int(ds_path_pair[0].InstanceNumber)
         )
 
 
+@attr.s(frozen=True)
 class L3AxialSliceMetadata:
-    def __init__(
-        self, sagittal_start_z_pos, first_axial_pos, last_axial_pos,
-        l3_axial_image_index, axial_image_count, predicted_z_position
-    ):
-        self.sagittal_start_z_pos = sagittal_start_z_pos
-        self.first_axial_pos = first_axial_pos
-        self.last_axial_pos = last_axial_pos
-        self.l3_axial_image_index = l3_axial_image_index
-        self.axial_image_count = axial_image_count
-        self.predicted_z_position = predicted_z_position
+    sagittal_start_z_pos = attr.ib()
+    first_axial_pos = attr.ib()
+    last_axial_pos = attr.ib()
+    l3_axial_image_index = attr.ib()
+    axial_image_count = attr.ib()
+    predicted_z_position = attr.ib()
+    l3_axial_image_dcm_path = attr.ib()
 
     def as_csv_row(self):
         return [
@@ -354,10 +365,11 @@ class L3AxialSliceMetadata:
             self.last_axial_pos,
             self.l3_axial_image_index,
             self.axial_image_count,
+            self.l3_axial_image_dcm_path,
         ]
 
 
-@attr.s
+@attr.s(frozen=True)
 class Subject:
     path = attr.ib()
 
@@ -375,7 +387,7 @@ class Subject:
                 )
 
 
-@attr.s
+@attr.s(frozen=True)
 class NoSubjectDirSubject:
     path = attr.ib()
 
@@ -464,3 +476,59 @@ def remove_series_to_skip(series_to_skip, input_series):
 
     return [s for s in input_series if s.series_path not in series_paths_to_skip]
 
+
+def construct_series_for_subjects_without_sagittals(
+    subjects,
+    sagittal_series,
+    axial_series
+):
+    set_of_subjects_with_sagittals = set(s.subject for s in sagittal_series)
+
+    subjects_without_sagittal = set(
+        s
+        for s
+        in subjects
+        if s not in set_of_subjects_with_sagittals
+    )
+
+    axials_to_construct_with = (
+        series
+        for series
+        in axial_series
+        if series.subject in subjects_without_sagittal
+    )
+
+    return [
+        ConstructedImageSeries(axial_series=s)
+        for s
+        in axials_to_construct_with
+    ]
+
+
+@attr.s
+class ConstructedImageSeries:
+    axial_series = attr.ib()
+    _pixel_data = attr.ib(default=None)
+
+    @property
+    def pixel_data(self):
+        if self._pixel_data is None:
+            self._pixel_data = _construct_sagittal_from_axial_image(
+                self.axial_series.pixel_data
+            )
+        return self._pixel_data
+
+    def free_pixel_data(self):
+        """Use to free memory if too much pixel_data"""
+        self._pixel_data = None
+
+    @property
+    def spacing(self):
+        return [
+            *self.axial_series.true_spacing,
+            self.axial_series.slice_thickness
+        ]
+
+
+def _construct_sagittal_from_axial_image(axial_image):
+    return np.flip(np.rot90(np.rot90(axial_image, axes=(0,2)), axes=(1,2), k=3), axis=2) 

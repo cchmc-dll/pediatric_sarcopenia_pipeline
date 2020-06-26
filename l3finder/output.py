@@ -47,8 +47,6 @@ def output_images(l3_images, args):
 def _output_image(output_pipeline, l3_image):
     try:
         toolz.pipe(l3_image, *output_pipeline)
-    except IndexError as e:
-        import pdb; pdb.set_trace()
     finally:
         l3_image.free_pixel_data()
     return l3_image
@@ -85,6 +83,7 @@ def _write_prediction_csv_header(csv_path, should_overwrite):
                 'last_axial_pos',
                 'l3_axial_image_index',
                 'axial_image_count',
+                'axial_image_path',
             ]
         )
 
@@ -123,7 +122,7 @@ def _create_directory_for_l3_image(base_dir, l3_image, should_overwrite):
 def _save_l3_image_to_png(image_dir, l3_image, should_overwrite):
     file_name = 'subject_{image_id}_IM-CT-{image_number}.png'.format(
         image_id=l3_image.axial_series.id_,
-        image_number=l3_image.prediction_index
+        image_number=l3_image.prediction_index[0]
     )
     save_path = Path(image_dir, file_name)
 
@@ -191,7 +190,7 @@ def _in_bounds_title(image):
         'Subject: {} - Predicted axial slice (dicom #): {} / {}\n'
         'Predicted L3 in pixels: {}, {}'
         .format(
-            image.subject_id, image.prediction_index, image.number_of_axial_dicoms,
+            image.subject_id, image.prediction_index[0], image.number_of_axial_dicoms,
             image.predicted_y_in_px, image.height_of_sagittal_image
         )
     )
@@ -201,7 +200,7 @@ def _in_bounds_title(image):
 
 def _out_of_bounds_title(image):
     return 'Subject: {} out of bounds prediction: {}'.format(
-        image.subject_id, image.prediction_index
+        image.subject_id, image.prediction_index[0]
     )
 
 

@@ -9,7 +9,8 @@ import toolz
 
 
 from l3finder.ingest import find_subjects, separate_series, \
-    load_series_to_skip_pickle_file, remove_series_to_skip
+    load_series_to_skip_pickle_file, remove_series_to_skip, \
+    construct_series_for_subjects_without_sagittals
 from l3finder.output import output_l3_images_to_h5, output_images
 from util.reify import reify
 
@@ -127,13 +128,17 @@ def find_l3_images(args):
 
     print("Separating series")
     sagittal_series, axial_series, excluded_series = separate_series(series)
-
-    # print("SHORTENING for development")
-    # sagittal_series = sagittal_series[:10]
-    # axial_series = axial_series[:10]
+    print("SHORTENING for development")
+    sagittal_series = sagittal_series[:35]
+    axial_series = axial_series[:35]
     # investigate = set(["56"])
     # sagittal_series = [s for s in sagittal_series if s.subject.id_ in investigate]
     # axial_series = [s for s in axial_series if s.subject.id_ in investigate]
+    constructed_sagittals = construct_series_for_subjects_without_sagittals(
+        subjects, sagittal_series, axial_series
+    )
+
+    import ipdb; ipdb.set_trace()
 
     print(
         "Series separated\n",
@@ -236,10 +241,11 @@ class L3Image:
 
     @reify
     def prediction_index(self):
-        return self.axial_series.image_index_at_pos(
+        index, metadata =  self.axial_series.image_index_at_pos(
             self.prediction_result.prediction.predicted_y_in_px,
             sagittal_start_z_pos=self.sagittal_series.starting_z_pos
         )
+        return index, metadata
 
     def as_csv_row(self):
         prediction = self.prediction_result.prediction

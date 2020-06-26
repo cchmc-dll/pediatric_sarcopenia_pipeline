@@ -5,6 +5,7 @@ import multiprocessing
 import os
 import pickle
 
+import attr
 import SimpleITK as sitk
 import cv2
 import numpy as np
@@ -101,7 +102,10 @@ def handle_ydata(ydata):
 
 def create_sagittal_mips_from_series(many_series, cache_dir="", cache=True):
     sagittal_mip_creator = build_callable_that_loads_from_cache_or_runs_step(
-        pipeline_step=CreateSagittalMIPsStep(cache_dir),
+        pipeline_step=CreateSagittalMIPsStep(
+            cache_dir,
+            expected_count=len(many_series),
+        ),
         use_cache=cache,
     )
 
@@ -109,14 +113,25 @@ def create_sagittal_mips_from_series(many_series, cache_dir="", cache=True):
 
 
 class CreateSagittalMIPsStep(CachablePipelineStep):
-    def __init__(self, cache_dir):
+    def __init__(self, cache_dir, expected_count):
         self._cache_dir = cache_dir
         self._cache_file_name = "_sagittal_mips.pkl"
+        self.expected_count = expected_count
 
     def load(self):
         with open(self._cache_pickle_path, "rb") as f:
             print("Loading Sagittal MIPs from the cache at:", self._cache_pickle_path)
-            return pickle.load(f)
+            try:
+                cached_series = pickle.load(f)
+            except ImportError:
+                print("Import error when loading mips pickle from cache, Recalculating.")
+                raise FileNotFoundError
+
+            if len(cached_series) == self.expected_count:
+                return cached_series
+            else:
+                print("Cached length different than expected. Recalculating.")
+                raise FileNotFoundError
 
     @property
     def _cache_pickle_path(self):
@@ -153,22 +168,40 @@ def create_sagittal_mip(sagittal_series_data):
     return create_mip(slice_middle_images(sagittal_series_data))
 
 
-PreprocessedImage = namedtuple(
-    'PreprocessedImage', ['pixel_data', 'unpadded_height']
-)
+# PreprocessedImage = namedtuple(
+    # 'PreprocessedImage', ['pixel_data', 'unpadded_height']
+# )
+@attr.s
+class PreprocessedImage:
+    pixel_data = attr.ib()
+    unpadded_height = attr.ib()
 
 
 def preprocess_images(images, spacings):
-    for image, spacing in zip(images, spacings):
-        new_image = normalize_spacing(image, spacing)
-        new_image = preprocess_to_8bit(new_image)
-        height = new_image.shape[0]
+    image_spacing_pairs =  list(zip(images, spacings))
 
-        new_image = expand_axes(new_image)
-        yield PreprocessedImage(
-            pixel_data=new_image,
-            unpadded_height=height
+    with multiprocessing.Pool(multiprocessing.cpu_count()) as pool:
+        images = list(
+            tqdm(
+                pool.imap(_preprocess_image_spacing_pair, image_spacing_pairs),
+                total=len(image_spacing_pairs),
+            )
         )
+        pool.close()
+        pool.join()
+    return images
+
+def _preprocess_image_spacing_pair(image_spacing_pair):
+    image, spacing = image_spacing_pair
+    new_image = normalize_spacing(image, spacing)
+    new_image = preprocess_to_8bit(new_image)
+    height = new_image.shape[0]
+
+    new_image = expand_axes(new_image)
+    return PreprocessedImage(
+        pixel_data=new_image,
+        unpadded_height=height
+    )
 
 
 def expand_axes(image):
