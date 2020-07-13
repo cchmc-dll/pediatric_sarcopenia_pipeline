@@ -456,6 +456,8 @@ def separate_series(series):
         sagittal_series = pool_filter(p, sag_filter, series)
         axial_series = pool_filter(p, axial_filter, series)
 
+    axial_series = [a_s for a_s in axial_series if a_s.number_of_dicoms > 20]
+
     return sagittal_series, axial_series, excluded_series
 
 
@@ -470,6 +472,7 @@ def same_orientation(series, orientation, excluded_series):
 def load_series_to_skip_pickle_file(path):
     with open(path, "rb") as f:
         return pickle.load(f)
+
 
 def remove_series_to_skip(series_to_skip, input_series):
     series_paths_to_skip = set(s.series_path for s, _ in series_to_skip)
@@ -491,11 +494,20 @@ def construct_series_for_subjects_without_sagittals(
         if s not in set_of_subjects_with_sagittals
     )
 
+    print("FILTERING OUT 0.5 axials for recons for debugging!")
+
+    def axial_series_is_adequate(series, thickness_mm=0.5):
+        try:
+            return (series.slice_thickness != thickness_mm and
+                    series.number_of_dicoms > 20)
+        except AttributeError:
+            return False
+
     axials_to_construct_with = (
         series
         for series
         in axial_series
-        if series.subject in subjects_without_sagittal
+        if series.subject in subjects_without_sagittal and axial_series_is_adequate(series)
     )
 
     return [
@@ -511,6 +523,10 @@ class ConstructedImageSeries:
     _pixel_data = attr.ib(default=None)
 
     @property
+    def subject(self):
+        return self.axial_series.subject
+
+    @property
     def pixel_data(self):
         if self._pixel_data is None:
             self._pixel_data = _construct_sagittal_from_axial_image(
@@ -521,6 +537,11 @@ class ConstructedImageSeries:
     def free_pixel_data(self):
         """Use to free memory if too much pixel_data"""
         self._pixel_data = None
+        self.axial_series.free_pixel_data()
+
+    @property
+    def slice_thickness(self):
+        return self.spacing[0]
 
     @property
     def spacing(self):
@@ -529,6 +550,35 @@ class ConstructedImageSeries:
             self.axial_series.slice_thickness
         ]
 
+    @property
+    def starting_z_pos(self):
+        return self.axial_series.starting_z_pos
+
+    @property
+    def number_of_dicoms(self):
+        return self.pixel_data.shape[0]
+
+    @property
+    def series_path(self):
+        return "Reconstruction:" + str(self.axial_series.series_path)
+
+    @property
+    def resolution(self):
+        return self.pixel_data.shape[1], self.pixel_data.shape[2]
+
 
 def _construct_sagittal_from_axial_image(axial_image):
-    return np.flip(np.rot90(np.rot90(axial_image, axes=(0,2)), axes=(1,2), k=3), axis=2) 
+    return np.flip(np.rot90(np.rot90(axial_image, axes=(0,2)), axes=(1,2), k=3), axis=2)
+
+
+def filter_axial_series(axial_series):
+    def meets_criteria(ax):
+        try:
+            return all([
+                ax.slice_thickness in [3.0, 5.0],
+                'lung' not in ax.series_path.name.lower(),
+            ])
+        except AttributeError:
+            return False
+    # Must be 5.0 or 3.0 slice thickness for now
+    return [ax for ax in axial_series if meets_criteria(ax)]

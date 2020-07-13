@@ -10,19 +10,39 @@ import toolz
 
 from l3finder.ingest import find_subjects, separate_series, \
     load_series_to_skip_pickle_file, remove_series_to_skip, \
-    construct_series_for_subjects_without_sagittals
+    construct_series_for_subjects_without_sagittals, \
+    filter_axial_series
 from l3finder.output import output_l3_images_to_h5, output_images
 from util.reify import reify
+
+def pcs_debugger(type, value, tb):
+    traceback.print_exception(type, value, tb)
+    pdb.pm()
+
+sys.excepthook = pcs_debugger
 
 
 @attr.s
 class SagittalMIP:
-    series = attr.ib()
-    preprocessed_image = attr.ib()
+    source_preprocessed_image = attr.ib()
 
     @property
     def subject_id(self):
-        return self.series.subject.id_
+        return self.source_preprocessed_image.source_series.subject.id_
+
+    @property
+    def preprocessed_image(self):
+        return self.source_preprocessed_image
+
+    @property
+    def series(self):
+        return self.source_preprocessed_image.source_series
+    # series = attr.ib()
+    # preprocessed_image = attr.ib()
+
+    # @property
+    # def subject_id(self):
+        # return self.series.subject.id_
 
 
 def parse_args():
@@ -110,6 +130,7 @@ def main():
             should_save_plots=args.save_plots
         )
     )
+    return l3_images
 
 
 def find_l3_images(args):
@@ -129,22 +150,24 @@ def find_l3_images(args):
     print("Separating series")
     sagittal_series, axial_series, excluded_series = separate_series(series)
     print("SHORTENING for development")
-    sagittal_series = sagittal_series[:35]
-    axial_series = axial_series[:35]
-    # investigate = set(["56"])
+    # sagittal_series = sagittal_series[:150]
+    # axial_series = axial_series[:150]
+    # investigate = set(["Z1226209"])
     # sagittal_series = [s for s in sagittal_series if s.subject.id_ in investigate]
     # axial_series = [s for s in axial_series if s.subject.id_ in investigate]
+
+    print("Filtering out unwanted axial series")
+    axial_series = filter_axial_series(axial_series)
     constructed_sagittals = construct_series_for_subjects_without_sagittals(
         subjects, sagittal_series, axial_series
     )
-
-    import ipdb; ipdb.set_trace()
 
     print(
         "Series separated\n",
         len(sagittal_series), "sagittal series.",
         len(axial_series), "axial series.",
-        len(excluded_series), "excluded series."
+        len(excluded_series), "excluded series.",
+        len(constructed_sagittals), "constructed series.",
     )
 
     if args.series_to_skip_pickle_file:
@@ -154,10 +177,15 @@ def find_l3_images(args):
         sagittal_series = remove_series_to_skip(series_to_skip, sagittal_series)
         axial_series = remove_series_to_skip(series_to_skip, axial_series)
 
+    print("Just using constructed sagittals for now...")
+    sagittal_series = constructed_sagittals
+    # sagittal_series.extend(constructed_sagittals)
+
     print("Importing things that need tensorflow...")
     from l3finder.predict import make_predictions_for_sagittal_mips
     from l3finder.preprocess import create_sagittal_mip, preprocess_images, \
         group_mips_by_dimension, create_sagittal_mips_from_series
+
 
     print("Creating sagittal MIPS")
     mips = create_sagittal_mips_from_series(
@@ -165,16 +193,13 @@ def find_l3_images(args):
         cache_dir=args.cache_dir,
         cache=args.cache_intermediate_results,
     )
-    spacings = [series.spacing for series in sagittal_series]
+    # spacings = [series.spacing for series in sagittal_series]
 
     print("Preprocessing Images")
-    preprocessed_images = preprocess_images(images=mips, spacings=spacings)
+    preprocessed_images = preprocess_images(mips)
 
-    sagittal_mips = [
-        SagittalMIP(s, i)
-        for s, i
-        in zip(sagittal_series, preprocessed_images)
-    ]
+    # Sagittal mip is redundant, get rid just use preprocessed images
+    sagittal_mips = [SagittalMIP(i) for i in preprocessed_images]
 
     print("Separate heights for better batching")
     mips_by_dimension = group_mips_by_dimension(sagittal_mips)
@@ -189,6 +214,7 @@ def find_l3_images(args):
             shape=dimension,
         )
         prediction_results.extend(dim_group_results)
+    import ipdb; ipdb.set_trace()
     l3_images = build_l3_images(axial_series, prediction_results)
     return l3_images
 
@@ -271,4 +297,4 @@ class L3Image:
 
 
 if __name__ == "__main__":
-    main()
+    l3_images = main()

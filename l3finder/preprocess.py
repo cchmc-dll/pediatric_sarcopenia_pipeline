@@ -4,6 +4,7 @@ from collections import namedtuple
 import multiprocessing
 import os
 import pickle
+import traceback
 
 import attr
 import SimpleITK as sitk
@@ -30,10 +31,13 @@ def load_nifti_data(path):
     return sitk.GetArrayFromImage(sitk_img)
 
 
-def slice_middle_images(image_data, offset=6):
-    x_dim = image_data.shape[0]
+def slice_middle_images(sagittal_series, mip_thickness_mm=36):
+    x_dim = sagittal_series.pixel_data.shape[0]
     mid_index = x_dim // 2
-    return image_data[mid_index - offset:mid_index + offset]
+
+    num_slices = mip_thickness_mm / sagittal_series.slice_thickness
+    offset = round(num_slices / 2)
+    return sagittal_series.pixel_data[mid_index - offset:mid_index + offset]
 
 
 def create_mip(np_img):
@@ -127,11 +131,13 @@ class CreateSagittalMIPsStep(CachablePipelineStep):
                 print("Import error when loading mips pickle from cache, Recalculating.")
                 raise FileNotFoundError
 
-            if len(cached_series) == self.expected_count:
-                return cached_series
-            else:
-                print("Cached length different than expected. Recalculating.")
-                raise FileNotFoundError
+            return cached_series
+
+            # if len(cached_series) == self.expected_count:
+                # return cached_series
+            # else:
+                # print("Cached length different than expected. Recalculating.")
+                # raise FileNotFoundError
 
     @property
     def _cache_pickle_path(self):
@@ -157,50 +163,64 @@ def _create_sagittal_mips_from_series(many_series):
         pool.close()
         pool.join()
 
-    return mips
+    return [mip for mip in mips if mip is not None]
 
 
 def _load_image_and_create_mip(one_series):
-    return create_sagittal_mip(one_series.pixel_data)
+    return create_sagittal_mip(one_series)
+
+@attr.s(frozen=True)
+class MIP:
+    pixel_data = attr.ib()
+    source_series = attr.ib()
+
+def create_sagittal_mip(one_sagittal_series):
+    try:
+        pixel_data = create_mip(slice_middle_images(one_sagittal_series))
+        one_sagittal_series.free_pixel_data()
+        return MIP(pixel_data=pixel_data, source_series=one_sagittal_series)
+    except RuntimeError as e:
+        print("RuntimeError encountered when creating sagittal mip")
+        print(traceback.format_exc())
+        return None
 
 
-def create_sagittal_mip(sagittal_series_data):
-    return create_mip(slice_middle_images(sagittal_series_data))
-
-
-# PreprocessedImage = namedtuple(
-    # 'PreprocessedImage', ['pixel_data', 'unpadded_height']
-# )
 @attr.s
 class PreprocessedImage:
     pixel_data = attr.ib()
     unpadded_height = attr.ib()
+    source_mip = attr.ib()
+
+    @property
+    def source_series(self):
+        return self.source_mip.source_series
 
 
-def preprocess_images(images, spacings):
-    image_spacing_pairs =  list(zip(images, spacings))
 
-    with multiprocessing.Pool(multiprocessing.cpu_count()) as pool:
-        images = list(
-            tqdm(
-                pool.imap(_preprocess_image_spacing_pair, image_spacing_pairs),
-                total=len(image_spacing_pairs),
-            )
-        )
-        pool.close()
-        pool.join()
+
+def preprocess_images(mips):
+    # with multiprocessing.Pool(multiprocessing.cpu_count()) as pool:
+        # images = list(tqdm(pool.imap(_preprocess_mip, mips)))
+        # pool.close()
+        # pool.join()
+
+    images = map(_preprocess_mip, mips)
     return images
 
-def _preprocess_image_spacing_pair(image_spacing_pair):
-    image, spacing = image_spacing_pair
-    new_image = normalize_spacing(image, spacing)
+def _preprocess_mip(mip):
+    new_image = normalize_spacing(
+        image=mip.pixel_data,
+        spacing=mip.source_series.spacing,
+    )
+
     new_image = preprocess_to_8bit(new_image)
     height = new_image.shape[0]
 
     new_image = expand_axes(new_image)
     return PreprocessedImage(
         pixel_data=new_image,
-        unpadded_height=height
+        unpadded_height=height,
+        source_mip=mip
     )
 
 

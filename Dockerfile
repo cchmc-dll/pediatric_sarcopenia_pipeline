@@ -21,6 +21,8 @@ WORKDIR /opt/app
 RUN pip install --default-timeout=60 -r requirements.txt
 RUN pip install git+https://github.com/PyTables/PyTables.git@v3.5.2
 RUN pip install imgaug==0.2.9
+
+RUN apt-get update && apt-get install -y --no-install-recommends tmux
 # Install PyTables from source
 # COPY ./PyTables /opt/app/PyTables
 # WORKDIR /opt/app/PyTables

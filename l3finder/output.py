@@ -186,12 +186,15 @@ def _generate_l3_prediction_out_of_bounds_figure(l3_image):
 
 
 def _in_bounds_title(image):
+    pred_metadata = image.prediction_index[1]
     title = (
         'Subject: {} - Predicted axial slice (dicom #): {} / {}\n'
-        'Predicted L3 in pixels: {}, {}'
+        'Predicted L3 in pixels: {}, {}\n'
+        'Predicted z pos: {}. Axial image position range: {}-{}'
         .format(
             image.subject_id, image.prediction_index[0], image.number_of_axial_dicoms,
-            image.predicted_y_in_px, image.height_of_sagittal_image
+            image.predicted_y_in_px, image.height_of_sagittal_image,
+            pred_metadata.predicted_z_position, pred_metadata.first_axial_pos, pred_metadata.last_axial_pos
         )
     )
 

@@ -9,6 +9,8 @@ from skimage.draw import line
 from ct_slice_detection.models.detection import build_prediction_model
 from ct_slice_detection.utils.testing_utils import predict_slice
 
+from l3finder import preprocess as prep
+
 Output = namedtuple('OutputData', ['prediction', 'image_with_predicted_line'])
 
 
@@ -29,6 +31,7 @@ def make_predictions_for_sagittal_mips(sagittal_mips, model_path, shape):
         images[index] = mip.preprocessed_image.pixel_data
         unpadded_heights[index] = mip.preprocessed_image.unpadded_height
 
+    import ipdb; ipdb.set_trace()
     predictions = predict_batch(images, model)
 
     unpadded_images = [
