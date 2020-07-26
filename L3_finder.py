@@ -118,7 +118,7 @@ def parse_args():
 def main():
     args = parse_args()
 
-    l3_images = find_l3_images(args)
+    l3_images = find_l3_images(config=vars(args))
 
     print("Outputting images")
     output_images(
@@ -133,13 +133,13 @@ def main():
     return l3_images
 
 
-def find_l3_images(args):
+def find_l3_images(config):
     print("Finding subjects")
 
     subjects = list(
         find_subjects(
-            args.dicom_dir,
-            new_tim_dir_structure=args.new_tim_dicom_dir_structure
+            config["dicom_dir"],
+            new_tim_dir_structure=config["new_tim_dicom_dir_structure"]
         )
     )
 
@@ -149,9 +149,9 @@ def find_l3_images(args):
 
     print("Separating series")
     sagittal_series, axial_series, excluded_series = separate_series(series)
-    print("SHORTENING for development")
-    # sagittal_series = sagittal_series[:150]
-    # axial_series = axial_series[:150]
+    # print("SHORTENING for development")
+    # sagittal_series = sagittal_series[:20]
+    # axial_series = axial_series[:20]
     # investigate = set(["Z1226209"])
     # sagittal_series = [s for s in sagittal_series if s.subject.id_ in investigate]
     # axial_series = [s for s in axial_series if s.subject.id_ in investigate]
@@ -170,16 +170,16 @@ def find_l3_images(args):
         len(constructed_sagittals), "constructed series.",
     )
 
-    if args.series_to_skip_pickle_file:
+    if config["series_to_skip_pickle_file"]:
         print("Removing unwanted series")
         series_to_skip = load_series_to_skip_pickle_file(
-            args.series_to_skip_pickle_file)
+            config["series_to_skip_pickle_file"])
         sagittal_series = remove_series_to_skip(series_to_skip, sagittal_series)
         axial_series = remove_series_to_skip(series_to_skip, axial_series)
 
-    print("Just using constructed sagittals for now...")
-    sagittal_series = constructed_sagittals
-    # sagittal_series.extend(constructed_sagittals)
+    # print("Just using constructed sagittals for now...")
+    # sagittal_series = constructed_sagittals
+    sagittal_series.extend(constructed_sagittals)
 
     print("Importing things that need tensorflow...")
     from l3finder.predict import make_predictions_for_sagittal_mips
@@ -190,8 +190,8 @@ def find_l3_images(args):
     print("Creating sagittal MIPS")
     mips = create_sagittal_mips_from_series(
         many_series=sagittal_series,
-        cache_dir=args.cache_dir,
-        cache=args.cache_intermediate_results,
+        cache_dir=config.get("cache_dir", None),
+        cache=config.get("cache_intermediate_results", False),
     )
     # spacings = [series.spacing for series in sagittal_series]
 
@@ -210,11 +210,10 @@ def find_l3_images(args):
     for dimension, sagittal_mips in mips_by_dimension.items():
         dim_group_results = make_predictions_for_sagittal_mips(
             sagittal_mips,
-            model_path=args.model_path,
+            model_path=config["model_path"],
             shape=dimension,
         )
         prediction_results.extend(dim_group_results)
-    import ipdb; ipdb.set_trace()
     l3_images = build_l3_images(axial_series, prediction_results)
     return l3_images
 

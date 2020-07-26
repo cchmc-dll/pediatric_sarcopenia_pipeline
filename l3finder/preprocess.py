@@ -199,12 +199,12 @@ class PreprocessedImage:
 
 
 def preprocess_images(mips):
-    # with multiprocessing.Pool(multiprocessing.cpu_count()) as pool:
-        # images = list(tqdm(pool.imap(_preprocess_mip, mips)))
-        # pool.close()
-        # pool.join()
+    with multiprocessing.Pool(multiprocessing.cpu_count()) as pool:
+        images = list(tqdm(pool.imap(_preprocess_mip, mips)))
+        pool.close()
+        pool.join()
 
-    images = map(_preprocess_mip, mips)
+    # images = map(_preprocess_mip, mips)
     return images
 
 def _preprocess_mip(mip):

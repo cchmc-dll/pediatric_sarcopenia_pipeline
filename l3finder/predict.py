@@ -31,7 +31,6 @@ def make_predictions_for_sagittal_mips(sagittal_mips, model_path, shape):
         images[index] = mip.preprocessed_image.pixel_data
         unpadded_heights[index] = mip.preprocessed_image.unpadded_height
 
-    import ipdb; ipdb.set_trace()
     predictions = predict_batch(images, model)
 
     unpadded_images = [
@@ -40,9 +39,9 @@ def make_predictions_for_sagittal_mips(sagittal_mips, model_path, shape):
         in zip(predictions, unpadded_heights)
     ]
     display_images = [
-        draw_line_on_predicted_image(p, upi[0])
-        for p, upi
-        in zip(predictions, unpadded_images)
+        draw_line_on_predicted_image(p, upi[0], sag_mip)
+        for p, upi, sag_mip
+        in zip(predictions, unpadded_images, sagittal_mips)
     ]
 
     return [
@@ -90,7 +89,7 @@ def undo_padding(prediction, image_height):
     return image[:image_height, :, :], prediction_map[:image_height, :],
 
 
-def draw_line_on_predicted_image(prediction, unpadded_image):
+def draw_line_on_predicted_image(prediction, unpadded_image, sag_mip):
     rr, cc = line(
         r0=prediction.predicted_y_in_px,
         c0=0,
@@ -103,7 +102,11 @@ def draw_line_on_predicted_image(prediction, unpadded_image):
     try:
         output[rr, cc] = np.iinfo(output.dtype).max
     except IndexError:
-        print("error drawing line on preprocessed_image for:", file=sys.stderr)
+        print(
+            "error drawing line on preprocessed_image for:",
+            sag_mip.subject_id,
+            file=sys.stderr,
+        )
         print(
             "shape: {}, prediction: {}\n".format(
                 unpadded_image.shape, prediction.predicted_y_in_px

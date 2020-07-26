@@ -245,6 +245,10 @@ class ImageSeries:
         )
 
     @property
+    def series_name(self):
+        return self.series_path.name
+
+    @property
     def pixel_data(self):
         if self._pixel_data is None:
             self._pixel_data = load_pixel_data_from_paths(
@@ -521,6 +525,10 @@ def construct_series_for_subjects_without_sagittals(
 class ConstructedImageSeries:
     axial_series = attr.ib()
     _pixel_data = attr.ib(default=None)
+
+    @property
+    def series_name(self):
+        return "recon from: " + self.axial_series.series_name
 
     @property
     def subject(self):

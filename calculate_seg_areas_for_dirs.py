@@ -82,8 +82,5 @@ def output_to_csv(args, areas_by_directory):
         yield output_csv_path
 
 
-
-
-
 if __name__ == "__main__":
     main(sys.argv[1:])

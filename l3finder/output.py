@@ -29,7 +29,7 @@ def output_images(l3_images, args):
     image_outputter = functools.partial(_output_image, output_pipeline)
     print("Slow unless axial images already loaded...")
 
-    with multiprocessing.Pool(48) as pool:
+    with multiprocessing.Pool(multiprocessing.cpu_count() // 2) as pool:
         # Could use map, but imap lets me get a progress bar
         l3_images = list(
             tqdm(
