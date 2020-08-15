@@ -229,7 +229,8 @@ class UnknownOrientation(Exception):
 @attr.s
 class ImageSeries:
     position_key = (0x0020, 0x0032)
-    z_pos_key = 2
+    ax_z_pos_key = 2
+    sag_z_pos_key = 0
     _pixel_data = None
     _first_dataset = None
 
@@ -313,7 +314,7 @@ class ImageSeries:
         )
         dicom_paths = np.empty(shape=length, dtype="object")
         for index, (dataset, path) in enumerate(dataset_path_pairs):
-            series_z_positions[index] = dataset[self.position_key][self.z_pos_key]
+            series_z_positions[index] = dataset[self.position_key][self.ax_z_pos_key]
             dicom_paths[index] = path
 
         direction = np.sign(series_z_positions[-1] - series_z_positions[0])
@@ -338,10 +339,31 @@ class ImageSeries:
     def number_of_dicoms(self):
         return len(list(self.series_path.iterdir()))
 
-    @reify
+    @property
     def starting_z_pos(self):
+        return self.z_range_pair[0]
+
+    @reify
+    def z_range_pair(self):
         first_dataset = self.dataset_path_pairs_in_order[0][0]
-        return np.float(first_dataset[self.position_key][self.z_pos_key])
+        last_dataset = self.dataset_path_pairs_in_order[-1][0]
+
+        if self.orientation == 'axial':
+            return (
+                np.float(first_dataset[self.position_key][self.ax_z_pos_key]),
+                np.float(last_dataset[self.position_key][self.ax_z_pos_key]),
+            )
+        elif self.orientation == 'sagittal':
+            direction = -1 if first_dataset[self.position_key][0] > last_dataset[self.position_key][0] else 1
+            distance = first_dataset.PixelSpacing[0] * first_dataset.Rows
+            first_pos = first_dataset[self.position_key][self.ax_z_pos_key]
+            return (
+                np.float(first_pos),
+                np.float(first_pos + (direction * distance))
+            )
+        else:
+            raise "z_range_pair requested for not supported orientation {}".format(self.orientation)
+
 
     @property
     def dataset_path_pairs_in_order(self):
@@ -349,6 +371,64 @@ class ImageSeries:
             ((pydicom.dcmread(str(p)), p) for p in self.series_path.iterdir()),
             key=lambda ds_path_pair: int(ds_path_pair[0].InstanceNumber)
         )
+
+
+@attr.s
+class ConstructedImageSeries:
+    axial_series = attr.ib()
+    _pixel_data = attr.ib(default=None)
+
+    @property
+    def series_name(self):
+        return "recon from: " + self.axial_series.series_name
+
+    @property
+    def subject(self):
+        return self.axial_series.subject
+
+    @property
+    def pixel_data(self):
+        if self._pixel_data is None:
+            self._pixel_data = _construct_sagittal_from_axial_image(
+                self.axial_series.pixel_data
+            )
+        return self._pixel_data
+
+    def free_pixel_data(self):
+        """Use to free memory if too much pixel_data"""
+        self._pixel_data = None
+        self.axial_series.free_pixel_data()
+
+    @property
+    def slice_thickness(self):
+        return self.spacing[0]
+
+    @property
+    def spacing(self):
+        return [
+            *self.axial_series.true_spacing,
+            self.axial_series.slice_thickness
+        ]
+
+    @property
+    def starting_z_pos(self):
+        return self.axial_series.starting_z_pos
+
+    @property
+    def z_range_pair(self):
+        return self.axial_series.z_range_pair
+
+    @property
+    def number_of_dicoms(self):
+        return self.pixel_data.shape[0]
+
+    @property
+    def series_path(self):
+        return "Reconstruction:" + str(self.axial_series.series_path)
+
+    @property
+    def resolution(self):
+        return self.pixel_data.shape[1], self.pixel_data.shape[2]
 
 
 @attr.s(frozen=True)
@@ -519,60 +599,6 @@ def construct_series_for_subjects_without_sagittals(
         for s
         in axials_to_construct_with
     ]
-
-
-@attr.s
-class ConstructedImageSeries:
-    axial_series = attr.ib()
-    _pixel_data = attr.ib(default=None)
-
-    @property
-    def series_name(self):
-        return "recon from: " + self.axial_series.series_name
-
-    @property
-    def subject(self):
-        return self.axial_series.subject
-
-    @property
-    def pixel_data(self):
-        if self._pixel_data is None:
-            self._pixel_data = _construct_sagittal_from_axial_image(
-                self.axial_series.pixel_data
-            )
-        return self._pixel_data
-
-    def free_pixel_data(self):
-        """Use to free memory if too much pixel_data"""
-        self._pixel_data = None
-        self.axial_series.free_pixel_data()
-
-    @property
-    def slice_thickness(self):
-        return self.spacing[0]
-
-    @property
-    def spacing(self):
-        return [
-            *self.axial_series.true_spacing,
-            self.axial_series.slice_thickness
-        ]
-
-    @property
-    def starting_z_pos(self):
-        return self.axial_series.starting_z_pos
-
-    @property
-    def number_of_dicoms(self):
-        return self.pixel_data.shape[0]
-
-    @property
-    def series_path(self):
-        return "Reconstruction:" + str(self.axial_series.series_path)
-
-    @property
-    def resolution(self):
-        return self.pixel_data.shape[1], self.pixel_data.shape[2]
 
 
 def _construct_sagittal_from_axial_image(axial_image):

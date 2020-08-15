@@ -1,0 +1,16 @@
+{
+    "l3_finder": {
+        "dicom_dir": "/opt/data",
+        "model_path": "/opt/smi/models/l3/child_9_slice_w_transfer_fold_3.h5",
+        "output_directory": "/opt/smi/investigate",
+        "overwrite": true,
+        "save_plots": true,
+        "show_plots": false,
+        "new_tim_dicom_dir_structure": true,
+        "series_to_skip_pickle_file": "/opt/smi/broken_sagittal_and_axial_series.pkl"
+    },
+    "muscle_segmentor": {
+        "model_path": "/opt/smi/models/muscle/muscle_model_combined_dice_219_fold_1.h5",
+        "output_directory": "/opt/smi/investigate/segmentation_predictions"
+    }
+}

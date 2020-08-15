@@ -10,10 +10,12 @@ import toolz
 
 from l3finder.ingest import find_subjects, separate_series, \
     load_series_to_skip_pickle_file, remove_series_to_skip, \
-    construct_series_for_subjects_without_sagittals, \
-    filter_axial_series
+    construct_series_for_subjects_without_sagittals
+from l3finder.exclude import filter_axial_series, filter_sagittal_series
 from l3finder.output import output_l3_images_to_h5, output_images
 from util.reify import reify
+from util.investigate import load_subject_ids_to_investigate
+
 
 def pcs_debugger(type, value, tb):
     traceback.print_exception(type, value, tb)
@@ -149,15 +151,17 @@ def find_l3_images(config):
 
     print("Separating series")
     sagittal_series, axial_series, excluded_series = separate_series(series)
-    # print("SHORTENING for development")
+    print("SHORTENING for development")
     # sagittal_series = sagittal_series[:20]
     # axial_series = axial_series[:20]
-    # investigate = set(["Z1226209"])
-    # sagittal_series = [s for s in sagittal_series if s.subject.id_ in investigate]
-    # axial_series = [s for s in axial_series if s.subject.id_ in investigate]
+    # investigate = set(["Z1243452", "Z1238033"])
+    investigate = set(load_subject_ids_to_investigate('/opt/smi/areas_differ_by_gt_10_pct.txt'))
+    sagittal_series = [s for s in sagittal_series if s.subject.id_ in investigate]
+    axial_series = [s for s in axial_series if s.subject.id_ in investigate]
 
-    print("Filtering out unwanted axial series")
+    print("Filtering out unwanted series")
     axial_series = filter_axial_series(axial_series)
+
     constructed_sagittals = construct_series_for_subjects_without_sagittals(
         subjects, sagittal_series, axial_series
     )
@@ -180,6 +184,7 @@ def find_l3_images(config):
     # print("Just using constructed sagittals for now...")
     # sagittal_series = constructed_sagittals
     sagittal_series.extend(constructed_sagittals)
+    sagittal_series = filter_sagittal_series(sagittal_series)
 
     print("Importing things that need tensorflow...")
     from l3finder.predict import make_predictions_for_sagittal_mips

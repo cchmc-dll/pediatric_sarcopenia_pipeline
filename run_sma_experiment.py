@@ -3,10 +3,13 @@ import csv
 import json
 import multiprocessing
 import os
+import sys
 
 import attr
 import cv2
 from imageio import imsave
+from intervals import FloatInterval
+import intervals
 from keras.models import load_model
 import numpy as np
 from tqdm import tqdm
@@ -18,8 +21,8 @@ from unet3d.metrics import (dice_coefficient, dice_coefficient_loss, dice_coef, 
 from l3finder.output import output_l3_images_to_h5, output_images
 
 
-def main():
-    args = parse_args()
+def main(argv):
+    args = parse_args(argv)
     config = parse_config_file(args)
     print("Config: \n", config)
 
@@ -40,20 +43,25 @@ def main():
     print("Calculating sma")
     areas = calculate_smas(sma_images)
 
+    print("Excluding images that do not meet criteria")
+    exclusions = filter_sma_and_l3_images(sma_images)
+
     print("Outputing SMA results")
     output_sma_results(
         config["muscle_segmentor"]["output_directory"],
         sma_images,
-        areas
+        areas,
+        exclusions,
     )
+    return sma_images, areas, exclusions
 
 
-def parse_args():
+def parse_args(argv):
     parser = ArgumentParser()
 
     parser.add_argument("json_config_path", help="path to json config file")
 
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def parse_config_file(args):
@@ -247,7 +255,7 @@ def calculate_sma_for_series_and_mask(series, mask):
     )
 
 
-def output_sma_results(output_dir, sma_images, areas):
+def output_sma_results(output_dir, sma_images, areas, exclusions):
     os.makedirs(output_dir, exist_ok=True)
 
     csv_filename = os.path.join(output_dir, "areas-mm2_by_subject_id.csv")
@@ -255,19 +263,83 @@ def output_sma_results(output_dir, sma_images, areas):
         csv_writer = csv.writer(csvfile)
         csv_writer.writerow(["subject_id", "area_mm2", "sagittal_series", "axial_series"])
 
+        excluded_indices = set(e.index for e in exclusions)
         for index in range(len(sma_images)):
-            l3_image = sma_images.l3_images[index]
-            base = os.path.join(output_dir, str(index) + "_" + l3_image.subject_id)
-            imsave(base + "_CT.tif", sma_images.tableless_images[index].astype(np.float32))
-            imsave(base + "_muscle.tif", sma_images.masks[index][0])
+            if index not in excluded_indices:
+                l3_image = sma_images.l3_images[index]
+                base = os.path.join(output_dir, str(index) + "_" + l3_image.subject_id)
+                imsave(base + "_CT.tif", sma_images.tableless_images[index].astype(np.float32))
+                imsave(base + "_muscle.tif", sma_images.masks[index][0])
 
-            row = [
-                *attr.astuple(areas[index]),
-                l3_image.sagittal_series.series_name,
-                l3_image.axial_series.series_name,
-            ]
-            csv_writer.writerow(row)
+                row = [
+                    *attr.astuple(areas[index]),
+                    l3_image.sagittal_series.series_name,
+                    l3_image.axial_series.series_name,
+                ]
+                csv_writer.writerow(row)
+
+    exclusion_filename = os.path.join(output_dir, "excluded_l3_images.csv")
+    with open(csv_filename, "w") as csvfile:
+        csv_writer = csv.writer(csvfile)
+        csv_writer.writerow(["subject_id", "sagittal_series", "axial_series", "exclusion_reason"])
+
+
+@attr.s
+class Exclusion:
+    index = attr.ib(int)
+    reason_excluded = attr.ib(str)
+
+
+def filter_sma_and_l3_images(sma_images):
+    exclusions = []
+
+    with multiprocessing.Pool(multiprocessing.cpu_count() // 2) as pool:
+        exclusions = list(tqdm(pool.imap(run_l3_image_exclusion_filters, enumerate(sma_images.l3_images))))
+        pool.close()
+        pool.join()
+
+    return [e for e in exclusions if e is not None]
+
+    # for index in tqdm(range(len(sma_images))):
+        # if not images_have_enough_overlap(sma_images.l3_images[index]):
+            # exclusions.append(
+                # Exclusion(
+                    # index,
+                    # "images not overlapping > 50%"
+                # )
+            # )
+    # return exclusions
+
+
+def run_l3_image_exclusion_filters(index_l3_image_pair):
+    index, l3_image = index_l3_image_pair
+    if not images_have_enough_overlap(l3_image):
+        return Exclusion(index, "images not overlapping > 50%")
+    else:
+        return None
+
+
+
+def images_have_enough_overlap(l3_image, min_overlap_factor=0.5):
+    sagittal_interval = FloatInterval(
+        [
+            np.min(l3_image.sagittal_series.z_range_pair),
+            np.max(l3_image.sagittal_series.z_range_pair),
+        ]
+    )
+    axial_interval = FloatInterval(
+        [
+            np.min(l3_image.axial_series.z_range_pair),
+            np.max(l3_image.axial_series.z_range_pair),
+        ]
+    )
+    try:
+        overlap = sagittal_interval & axial_interval
+        longer_length = max(sagittal_interval.length, axial_interval.length)
+        return (overlap.length / longer_length) > min_overlap_factor
+    except intervals.exc.IllegalArgument: # raised if there is no overlap
+        return False
 
 
 if __name__ == "__main__":
-    main()
+    sma_images, areas, exclusions = main(sys.argv[1:])
