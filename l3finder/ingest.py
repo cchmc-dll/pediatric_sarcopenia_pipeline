@@ -8,7 +8,6 @@ import subprocess
 import sys
 import warnings
 from pathlib import Path
-import pickle
 
 import attr
 import numpy as np
@@ -551,17 +550,6 @@ def same_orientation(series, orientation, excluded_series):
     except UnknownOrientation as e:
         excluded_series.append(e)
         return False
-
-
-def load_series_to_skip_pickle_file(path):
-    with open(path, "rb") as f:
-        return pickle.load(f)
-
-
-def remove_series_to_skip(series_to_skip, input_series):
-    series_paths_to_skip = set(s.series_path for s, _ in series_to_skip)
-
-    return [s for s in input_series if s.series_path not in series_paths_to_skip]
 
 
 def construct_series_for_subjects_without_sagittals(

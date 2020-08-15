@@ -26,7 +26,7 @@ def main(argv):
     config = parse_config_file(args)
     print("Config: \n", config)
 
-    l3_images = find_l3_images(config["l3_finder"])
+    l3_images, l3_finder_exclusions = find_l3_images(config["l3_finder"])
 
     print("Outputting L3 images")
     output_images(
@@ -53,7 +53,7 @@ def main(argv):
         areas,
         exclusions,
     )
-    return sma_images, areas, exclusions
+    return sma_images, areas, exclusions, l3_finder_exclusions
 
 
 def parse_args(argv):
@@ -342,4 +342,4 @@ def images_have_enough_overlap(l3_image, min_overlap_factor=0.5):
 
 
 if __name__ == "__main__":
-    sma_images, areas, exclusions = main(sys.argv[1:])
+    sma_images, areas, exclusions, l3_finder_exclusions = main(sys.argv[1:])
