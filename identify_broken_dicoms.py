@@ -50,8 +50,14 @@ def identify_broken_dicoms(args):
     broken_dicoms = []
 
     with multiprocessing.Pool(48) as pool:
+        print("-- Finding sagittals")
         broken_dicoms.extend([s for s in pool.map(series_if_broken, sagittal_series) if s])
+        print("-- Finding axials")
         broken_dicoms.extend([s for s in pool.map(series_if_broken, axial_series) if s])
+
+    print("series_id,error")
+    for series, error in broken_dicoms:
+        print("{},{}".format(series.id_, error))
 
     with open(args.pickle_dump_path, "wb") as f:
         pickle.dump(broken_dicoms, f)
@@ -64,6 +70,7 @@ def flatten(sequence):
 def series_if_broken(series):
     try:
         series.pixel_data
+        series.free_pixel_data()
         return False
     except Exception as e:
         return (series, e)

@@ -4,7 +4,9 @@ from collections import namedtuple
 import multiprocessing
 import os
 import pickle
+import traceback
 
+import attr
 import SimpleITK as sitk
 import cv2
 import numpy as np
@@ -29,10 +31,13 @@ def load_nifti_data(path):
     return sitk.GetArrayFromImage(sitk_img)
 
 
-def slice_middle_images(image_data, offset=6):
-    x_dim = image_data.shape[0]
+def slice_middle_images(sagittal_series, mip_thickness_mm=36):
+    x_dim = sagittal_series.pixel_data.shape[0]
     mid_index = x_dim // 2
-    return image_data[mid_index - offset:mid_index + offset]
+
+    num_slices = mip_thickness_mm / sagittal_series.slice_thickness
+    offset = round(num_slices / 2)
+    return sagittal_series.pixel_data[mid_index - offset:mid_index + offset]
 
 
 def create_mip(np_img):
@@ -101,7 +106,10 @@ def handle_ydata(ydata):
 
 def create_sagittal_mips_from_series(many_series, cache_dir="", cache=True):
     sagittal_mip_creator = build_callable_that_loads_from_cache_or_runs_step(
-        pipeline_step=CreateSagittalMIPsStep(cache_dir),
+        pipeline_step=CreateSagittalMIPsStep(
+            cache_dir,
+            expected_count=len(many_series),
+        ),
         use_cache=cache,
     )
 
@@ -109,14 +117,27 @@ def create_sagittal_mips_from_series(many_series, cache_dir="", cache=True):
 
 
 class CreateSagittalMIPsStep(CachablePipelineStep):
-    def __init__(self, cache_dir):
+    def __init__(self, cache_dir, expected_count):
         self._cache_dir = cache_dir
         self._cache_file_name = "_sagittal_mips.pkl"
+        self.expected_count = expected_count
 
     def load(self):
         with open(self._cache_pickle_path, "rb") as f:
             print("Loading Sagittal MIPs from the cache at:", self._cache_pickle_path)
-            return pickle.load(f)
+            try:
+                cached_series = pickle.load(f)
+            except ImportError:
+                print("Import error when loading mips pickle from cache, Recalculating.")
+                raise FileNotFoundError
+
+            return cached_series
+
+            # if len(cached_series) == self.expected_count:
+                # return cached_series
+            # else:
+                # print("Cached length different than expected. Recalculating.")
+                # raise FileNotFoundError
 
     @property
     def _cache_pickle_path(self):
@@ -142,33 +163,65 @@ def _create_sagittal_mips_from_series(many_series):
         pool.close()
         pool.join()
 
-    return mips
+    return [mip for mip in mips if mip is not None]
 
 
 def _load_image_and_create_mip(one_series):
-    return create_sagittal_mip(one_series.pixel_data)
+    return create_sagittal_mip(one_series)
+
+@attr.s(frozen=True)
+class MIP:
+    pixel_data = attr.ib()
+    source_series = attr.ib()
+
+def create_sagittal_mip(one_sagittal_series):
+    try:
+        pixel_data = create_mip(slice_middle_images(one_sagittal_series))
+        one_sagittal_series.free_pixel_data()
+        return MIP(pixel_data=pixel_data, source_series=one_sagittal_series)
+    except RuntimeError as e:
+        print("RuntimeError encountered when creating sagittal mip")
+        print(traceback.format_exc())
+        return None
 
 
-def create_sagittal_mip(sagittal_series_data):
-    return create_mip(slice_middle_images(sagittal_series_data))
+@attr.s
+class PreprocessedImage:
+    pixel_data = attr.ib()
+    unpadded_height = attr.ib()
+    source_mip = attr.ib()
+
+    @property
+    def source_series(self):
+        return self.source_mip.source_series
 
 
-PreprocessedImage = namedtuple(
-    'PreprocessedImage', ['pixel_data', 'unpadded_height']
-)
 
 
-def preprocess_images(images, spacings):
-    for image, spacing in zip(images, spacings):
-        new_image = normalize_spacing(image, spacing)
-        new_image = preprocess_to_8bit(new_image)
-        height = new_image.shape[0]
+def preprocess_images(mips):
+    with multiprocessing.Pool(multiprocessing.cpu_count()) as pool:
+        images = list(tqdm(pool.imap(_preprocess_mip, mips)))
+        pool.close()
+        pool.join()
 
-        new_image = expand_axes(new_image)
-        yield PreprocessedImage(
-            pixel_data=new_image,
-            unpadded_height=height
-        )
+    # images = map(_preprocess_mip, mips)
+    return images
+
+def _preprocess_mip(mip):
+    new_image = normalize_spacing(
+        image=mip.pixel_data,
+        spacing=mip.source_series.spacing,
+    )
+
+    new_image = preprocess_to_8bit(new_image)
+    height = new_image.shape[0]
+
+    new_image = expand_axes(new_image)
+    return PreprocessedImage(
+        pixel_data=new_image,
+        unpadded_height=height,
+        source_mip=mip
+    )
 
 
 def expand_axes(image):

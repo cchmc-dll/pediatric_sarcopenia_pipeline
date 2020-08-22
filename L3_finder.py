@@ -7,19 +7,44 @@ import sys
 import attr
 import toolz
 
+
 from l3finder.ingest import find_subjects, separate_series, \
-    load_series_to_skip_pickle_file, remove_series_to_skip
+    construct_series_for_subjects_without_sagittals
+from l3finder.exclude import filter_axial_series, filter_sagittal_series, \
+        load_series_to_skip_pickle_file, remove_series_to_skip
 from l3finder.output import output_l3_images_to_h5, output_images
+from util.reify import reify
+from util.investigate import load_subject_ids_to_investigate
+
+
+def pcs_debugger(type, value, tb):
+    traceback.print_exception(type, value, tb)
+    pdb.pm()
+
+sys.excepthook = pcs_debugger
 
 
 @attr.s
 class SagittalMIP:
-    series = attr.ib()
-    preprocessed_image = attr.ib()
+    source_preprocessed_image = attr.ib()
 
     @property
     def subject_id(self):
-        return self.series.subject.id_
+        return self.source_preprocessed_image.source_series.subject.id_
+
+    @property
+    def preprocessed_image(self):
+        return self.source_preprocessed_image
+
+    @property
+    def series(self):
+        return self.source_preprocessed_image.source_series
+    # series = attr.ib()
+    # preprocessed_image = attr.ib()
+
+    # @property
+    # def subject_id(self):
+        # return self.series.subject.id_
 
 
 def parse_args():
@@ -95,7 +120,7 @@ def parse_args():
 def main():
     args = parse_args()
 
-    l3_images = find_l3_images(args)
+    l3_images = find_l3_images(config=vars(args))
 
     print("Outputting images")
     output_images(
@@ -107,67 +132,82 @@ def main():
             should_save_plots=args.save_plots
         )
     )
+    return l3_images
 
 
-def find_l3_images(args):
+def find_l3_images(config):
     print("Finding subjects")
 
     subjects = list(
         find_subjects(
-            args.dicom_dir,
-            new_tim_dir_structure=args.new_tim_dicom_dir_structure
+            config["dicom_dir"],
+            new_tim_dir_structure=config["new_tim_dicom_dir_structure"]
         )
     )
 
     print("Finding series")
-
     series = list(flatten(s.find_series() for s in subjects))
+
+    exclusions = []
 
     print("Separating series")
     sagittal_series, axial_series, excluded_series = separate_series(series)
-
-    # print("SHORTENING for development")
-    # sagittal_series = sagittal_series[:10]
-    # axial_series = axial_series[:10]
-    # investigate = set(["56"])
+    print("SHORTENING for development")
+    # sagittal_series = sagittal_series[:20]
+    # axial_series = axial_series[:20]
+    # investigate = set(["Z1243452", "Z1238033"])
+    # investigate = set(load_subject_ids_to_investigate('/opt/smi/areas_differ_by_gt_10_pct.txt'))
     # sagittal_series = [s for s in sagittal_series if s.subject.id_ in investigate]
     # axial_series = [s for s in axial_series if s.subject.id_ in investigate]
+
+    print("Filtering out unwanted series")
+    axial_series, ax_exclusions = filter_axial_series(axial_series)
+    exclusions.extend(ax_exclusions)
+
+    constructed_sagittals = construct_series_for_subjects_without_sagittals(
+        subjects, sagittal_series, axial_series
+    )
 
     print(
         "Series separated\n",
         len(sagittal_series), "sagittal series.",
         len(axial_series), "axial series.",
-        len(excluded_series), "excluded series."
+        len(excluded_series), "excluded series.",
+        len(constructed_sagittals), "constructed series.",
     )
 
-    if args.series_to_skip_pickle_file:
+    if config["series_to_skip_pickle_file"]:
         print("Removing unwanted series")
         series_to_skip = load_series_to_skip_pickle_file(
-            args.series_to_skip_pickle_file)
+            config["series_to_skip_pickle_file"])
         sagittal_series = remove_series_to_skip(series_to_skip, sagittal_series)
         axial_series = remove_series_to_skip(series_to_skip, axial_series)
+
+    # print("Just using constructed sagittals for now...")
+    # sagittal_series = constructed_sagittals
+    sagittal_series.extend(constructed_sagittals)
+    sagittal_series, sag_exclusions = filter_sagittal_series(sagittal_series)
+    exclusions.extend(sag_exclusions)
 
     print("Importing things that need tensorflow...")
     from l3finder.predict import make_predictions_for_sagittal_mips
     from l3finder.preprocess import create_sagittal_mip, preprocess_images, \
         group_mips_by_dimension, create_sagittal_mips_from_series
 
+
     print("Creating sagittal MIPS")
     mips = create_sagittal_mips_from_series(
         many_series=sagittal_series,
-        cache_dir=args.cache_dir,
-        cache=args.cache_intermediate_results,
+        cache_dir=config.get("cache_dir", None),
+        cache=config.get("cache_intermediate_results", False),
     )
-    spacings = [series.spacing for series in sagittal_series]
+    # spacings = [series.spacing for series in sagittal_series]
 
     print("Preprocessing Images")
-    preprocessed_images = preprocess_images(images=mips, spacings=spacings)
+    preprocessed_images = preprocess_images(mips)
 
-    sagittal_mips = [
-        SagittalMIP(s, i)
-        for s, i
-        in zip(sagittal_series, preprocessed_images)
-    ]
+    # Sagittal mip is redundant, get rid just use preprocessed images
+    sagittal_mips = [SagittalMIP(i) for i in preprocessed_images]
 
     print("Separate heights for better batching")
     mips_by_dimension = group_mips_by_dimension(sagittal_mips)
@@ -178,12 +218,12 @@ def find_l3_images(args):
     for dimension, sagittal_mips in mips_by_dimension.items():
         dim_group_results = make_predictions_for_sagittal_mips(
             sagittal_mips,
-            model_path=args.model_path,
+            model_path=config["model_path"],
             shape=dimension,
         )
         prediction_results.extend(dim_group_results)
     l3_images = build_l3_images(axial_series, prediction_results)
-    return l3_images
+    return l3_images, exclusions
 
 
 def flatten(sequence):
@@ -232,22 +272,26 @@ class L3Image:
     def subject_id(self):
         return self.axial_series.subject.id_
 
-    @property
+    @reify
     def prediction_index(self):
-        return self.axial_series.image_index_at_pos(
+        index, metadata =  self.axial_series.image_index_at_pos(
             self.prediction_result.prediction.predicted_y_in_px,
             sagittal_start_z_pos=self.sagittal_series.starting_z_pos
         )
+        return index, metadata
 
     def as_csv_row(self):
         prediction = self.prediction_result.prediction
-        return [
-            self.subject_id,
+        prediction_index, l3_axial_slice_metadata = self.prediction_index
+        row = [
+            self.axial_series.id_,
             prediction.predicted_y_in_px,
             prediction.probability,
             self.sagittal_series.series_path,
             self.axial_series.series_path,
         ]
+        row.extend(l3_axial_slice_metadata.as_csv_row())
+        return row
 
     @property
     def predicted_y_in_px(self):
@@ -260,4 +304,4 @@ class L3Image:
 
 
 if __name__ == "__main__":
-    main()
+    l3_images = main()

@@ -29,26 +29,24 @@ def output_images(l3_images, args):
     image_outputter = functools.partial(_output_image, output_pipeline)
     print("Slow unless axial images already loaded...")
 
-    # with multiprocessing.Pool(48) as pool:
-        # # Could use map, but imap lets me get a progress bar
-        # l3_images = list(
-            # tqdm(
-                # pool.imap(image_outputter, l3_images),
-                # total=len(l3_images),
-            # )
-        # )
-        # pool.close()
-        # pool.join()
-    # return l3_images
+    with multiprocessing.Pool(multiprocessing.cpu_count() // 2) as pool:
+        # Could use map, but imap lets me get a progress bar
+        l3_images = list(
+            tqdm(
+                pool.imap(image_outputter, l3_images),
+                total=len(l3_images),
+            )
+        )
+        pool.close()
+        pool.join()
+    return l3_images
 
-    return [image_outputter(l3_image) for l3_image in tqdm(l3_images)]
+    # return [image_outputter(l3_image) for l3_image in tqdm(l3_images)]
 
 
 def _output_image(output_pipeline, l3_image):
     try:
         toolz.pipe(l3_image, *output_pipeline)
-    except IndexError as e:
-        import pdb; pdb.set_trace()
     finally:
         l3_image.free_pixel_data()
     return l3_image
@@ -74,11 +72,18 @@ def _write_prediction_csv_header(csv_path, should_overwrite):
         writer = csv.writer(f)
         writer.writerow(
             [
-                'subject_id',
+                'image_id',
                 'predicted_y_in_px',
                 'probability',
                 'sagittal_series_path',
                 'axial_series_path',
+                'sagittal_z_start_pos',
+                'predicted_z_position',
+                'first_axial_pos',
+                'last_axial_pos',
+                'l3_axial_image_index',
+                'axial_image_count',
+                'axial_image_path',
             ]
         )
 
@@ -115,9 +120,9 @@ def _create_directory_for_l3_image(base_dir, l3_image, should_overwrite):
 
 
 def _save_l3_image_to_png(image_dir, l3_image, should_overwrite):
-    file_name = 'subject_{subject_id}_IM-CT-{image_number}.png'.format(
-        subject_id=l3_image.subject_id,
-        image_number=l3_image.prediction_index
+    file_name = 'subject_{image_id}_IM-CT-{image_number}.png'.format(
+        image_id=l3_image.axial_series.id_,
+        image_number=l3_image.prediction_index[0]
     )
     save_path = Path(image_dir, file_name)
 
@@ -181,12 +186,24 @@ def _generate_l3_prediction_out_of_bounds_figure(l3_image):
 
 
 def _in_bounds_title(image):
+    pred_metadata = image.prediction_index[1]
+    sag_z_pair = image.sagittal_series.z_range_pair
     title = (
         'Subject: {} - Predicted axial slice (dicom #): {} / {}\n'
-        'Predicted L3 in pixels: {}, {}'
+        'Axial Series - {}\n'
+        'Sagittal Series - {}\n'
+        'Predicted L3 in pixels: {}, {}\n'
+        'Predicted z pos: {}\n'
+        'Sagittal image position range: {}-{}'
+        'Axial image position range: {}-{}'
         .format(
-            image.subject_id, image.prediction_index, image.number_of_axial_dicoms,
-            image.predicted_y_in_px, image.height_of_sagittal_image
+            image.subject_id, image.prediction_index[0], image.number_of_axial_dicoms,
+            image.axial_series.series_name,
+            image.sagittal_series.series_name,
+            image.predicted_y_in_px, image.height_of_sagittal_image,
+            pred_metadata.predicted_z_position,
+            sag_z_pair[0], sag_z_pair[1],
+            pred_metadata.first_axial_pos, pred_metadata.last_axial_pos
         )
     )
 
@@ -195,7 +212,7 @@ def _in_bounds_title(image):
 
 def _out_of_bounds_title(image):
     return 'Subject: {} out of bounds prediction: {}'.format(
-        image.subject_id, image.prediction_index
+        image.subject_id, image.prediction_index[0]
     )
 
 
@@ -203,7 +220,8 @@ def save_plot(image, output_directory, should_overwrite):
     plots_dir = Path(output_directory, 'plots')
     plots_dir.mkdir(exist_ok=should_overwrite)
 
-    file_name = '{}-plot.png'.format(image.subject_id)
+    file_name = '{}-Sag_{}-Ax_{}-plot.png'.format(
+        image.subject_id, image.sagittal_series.series_name, image.axial_series.series_name)
     plt.savefig(str(plots_dir.joinpath(file_name)))
 
 

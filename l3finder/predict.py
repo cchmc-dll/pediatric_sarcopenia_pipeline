@@ -9,6 +9,8 @@ from skimage.draw import line
 from ct_slice_detection.models.detection import build_prediction_model
 from ct_slice_detection.utils.testing_utils import predict_slice
 
+from l3finder import preprocess as prep
+
 Output = namedtuple('OutputData', ['prediction', 'image_with_predicted_line'])
 
 
@@ -37,9 +39,9 @@ def make_predictions_for_sagittal_mips(sagittal_mips, model_path, shape):
         in zip(predictions, unpadded_heights)
     ]
     display_images = [
-        draw_line_on_predicted_image(p, upi[0])
-        for p, upi
-        in zip(predictions, unpadded_images)
+        draw_line_on_predicted_image(p, upi[0], sag_mip)
+        for p, upi, sag_mip
+        in zip(predictions, unpadded_images, sagittal_mips)
     ]
 
     return [
@@ -87,7 +89,7 @@ def undo_padding(prediction, image_height):
     return image[:image_height, :, :], prediction_map[:image_height, :],
 
 
-def draw_line_on_predicted_image(prediction, unpadded_image):
+def draw_line_on_predicted_image(prediction, unpadded_image, sag_mip):
     rr, cc = line(
         r0=prediction.predicted_y_in_px,
         c0=0,
@@ -100,7 +102,11 @@ def draw_line_on_predicted_image(prediction, unpadded_image):
     try:
         output[rr, cc] = np.iinfo(output.dtype).max
     except IndexError:
-        print("error drawing line on preprocessed_image for:", file=sys.stderr)
+        print(
+            "error drawing line on preprocessed_image for:",
+            sag_mip.subject_id,
+            file=sys.stderr,
+        )
         print(
             "shape: {}, prediction: {}\n".format(
                 unpadded_image.shape, prediction.predicted_y_in_px
