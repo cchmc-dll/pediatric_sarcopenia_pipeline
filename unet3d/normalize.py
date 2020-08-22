@@ -108,6 +108,7 @@ def normalize_data_storage_2D(data_storage):
         
     mean = np.asarray(means).mean(axis=0)
     std = np.asarray(stds).mean(axis=0)
+    print("mean:", mean, "std:", std)
     for index in range(data_storage.shape[0]):
         data_storage[index] = normalize_data_2D(data_storage[index], mean, std)
         if index == 0:
