@@ -1,0 +1,15 @@
+{
+    "l3_finder": {
+        "dicom_dir": "/Users/jamescastiglione/git/jac241/Muscle_Segmentation/datasets/combined_dataset",
+        "model_path": "/Users/jamescastiglione/research/l3_finder_results/child_9_slice_w_adult_weights/UNet1D_cv_3_of_5_model-checkpoint.hdf5",
+        "output_directory": "/Users/jamescastiglione/research/full_run/",
+        "overwrite": true,
+        "save_plots": true,
+        "show_plots": false,
+        "new_tim_dicom_dir_structure": false
+    },
+    "muscle_segmentor": {
+        "model_path": "/opt/smi/models/muscle/muscle_model_combined_dice_219_fold_1.h5",
+        "output_directory": "/opt/smi/full_run/segmentation_predictions"
+    }
+}

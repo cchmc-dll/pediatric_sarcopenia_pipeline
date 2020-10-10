@@ -20,7 +20,7 @@ def concat_csvs(args):
         csv_rows.extend(rows)
 
     fold_results = []
-    for subject_id, rows in groupby('subject_id', csv_rows).items():
+    for subject_id, rows in groupby('', csv_rows).items():
         new_row = [subject_id]
         errors = [r[args.data_column] for r in rows]
         new_row.extend(errors)

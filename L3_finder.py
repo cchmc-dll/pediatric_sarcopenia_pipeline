@@ -3,8 +3,10 @@ from matplotlib import pyplot as plt
 from argparse import ArgumentParser
 import itertools
 import sys
+import traceback
 
 import attr
+import pdb
 import toolz
 
 
@@ -13,6 +15,9 @@ from l3finder.ingest import find_subjects, separate_series, \
 from l3finder.exclude import filter_axial_series, filter_sagittal_series, \
         load_series_to_skip_pickle_file, remove_series_to_skip
 from l3finder.output import output_l3_images_to_h5, output_images
+from l3finder.predict import make_predictions_for_sagittal_mips
+from l3finder.preprocess import create_sagittal_mip, preprocess_images, \
+    group_mips_by_dimension, create_sagittal_mips_from_series
 from util.reify import reify
 from util.investigate import load_subject_ids_to_investigate
 
@@ -152,7 +157,8 @@ def find_l3_images(config):
 
     print("Separating series")
     sagittal_series, axial_series, excluded_series = separate_series(series)
-    print("SHORTENING for development")
+
+    # print("SHORTENING for development")
     # sagittal_series = sagittal_series[:20]
     # axial_series = axial_series[:20]
     # investigate = set(["Z1243452", "Z1238033"])
@@ -176,7 +182,7 @@ def find_l3_images(config):
         len(constructed_sagittals), "constructed series.",
     )
 
-    if config["series_to_skip_pickle_file"]:
+    if config.get("series_to_skip_pickle_file", False):
         print("Removing unwanted series")
         series_to_skip = load_series_to_skip_pickle_file(
             config["series_to_skip_pickle_file"])
@@ -188,12 +194,6 @@ def find_l3_images(config):
     sagittal_series.extend(constructed_sagittals)
     sagittal_series, sag_exclusions = filter_sagittal_series(sagittal_series)
     exclusions.extend(sag_exclusions)
-
-    print("Importing things that need tensorflow...")
-    from l3finder.predict import make_predictions_for_sagittal_mips
-    from l3finder.preprocess import create_sagittal_mip, preprocess_images, \
-        group_mips_by_dimension, create_sagittal_mips_from_series
-
 
     print("Creating sagittal MIPS")
     mips = create_sagittal_mips_from_series(
@@ -227,10 +227,15 @@ def find_l3_images(config):
 
 
 def flatten(sequence):
+    """Converts array of arrays into just an array of items"""
     return itertools.chain(*sequence)
 
 
 def build_l3_images(axial_series, prediction_results):
+    """
+    Pairs axial series with L3 location predictions based on
+    subject ID.
+    """
     axials_with_prediction_results = toolz.join(
         leftkey=lambda ax: ax.subject.id_,
         leftseq=axial_series,
@@ -257,7 +262,7 @@ class L3Image:
     def pixel_data(self):
         return self.axial_series.image_at_pos_in_px(
             self.prediction_result.prediction.predicted_y_in_px,
-            sagittal_start_z_pos=self.sagittal_series.starting_z_pos
+            sagittal_z_pos_pair=self.sagittal_series.z_range_pair
         )
 
     @property
@@ -274,9 +279,9 @@ class L3Image:
 
     @reify
     def prediction_index(self):
-        index, metadata =  self.axial_series.image_index_at_pos(
+        index, metadata = self.axial_series.image_index_at_pos(
             self.prediction_result.prediction.predicted_y_in_px,
-            sagittal_start_z_pos=self.sagittal_series.starting_z_pos
+            sagittal_z_pos_pair=self.sagittal_series.z_range_pair
         )
         return index, metadata
 

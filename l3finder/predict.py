@@ -9,9 +9,17 @@ from skimage.draw import line
 from ct_slice_detection.models.detection import build_prediction_model
 from ct_slice_detection.utils.testing_utils import predict_slice
 
-from l3finder import preprocess as prep
-
 Output = namedtuple('OutputData', ['prediction', 'image_with_predicted_line'])
+
+Prediction = namedtuple(
+    'Prediction',
+    [
+        'predicted_y_in_px',
+        'probability',
+        'prediction_map',
+        'preprocessed_image'
+    ]
+)
 
 
 @attr.s
@@ -60,12 +68,6 @@ def predict_batch(batch, model):
     maxes = np.max(reshaped_preds, axis=1)
 
     return [Prediction(*p) for p in zip(indices_of_maxes, maxes, predictions, batch)]
-
-
-Prediction = namedtuple(
-    'Prediction',
-    ['predicted_y_in_px', 'probability', 'prediction_map', 'preprocessed_image']
-)
 
 
 def load_model(model_path):
