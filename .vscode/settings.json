@@ -1,5 +1,5 @@
 {
-    "python.pythonPath": "C:\\Users\\casju6\\AppData\\Local\\Continuum\\anaconda3\\envs\\deploy\\python.exe",
+    "python.pythonPath": "C:\\Users\\somd7w\\Desktop\\DL_Projects\\tensorflow\\python.exe",
      "vim.insertModeKeyBindings": [
         {
             "before": ["j", "k"],

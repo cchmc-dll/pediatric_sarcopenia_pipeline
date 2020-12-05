@@ -1,7 +1,8 @@
 #FROM python:3.6.4
 #FROM continuumio/miniconda3
 
-FROM tensorflow/tensorflow:1.13.1-gpu-py3
+#FROM tensorflow/tensorflow:1.13.1-gpu-py3
+FROM  tensorflow/tensorflow:latest-gpu-jupyter
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       bzip2 \
@@ -25,6 +26,10 @@ RUN pip install intervals==0.9.0
 RUN pip install notebook==6.1.1
 
 RUN apt-get update && apt-get install -y --no-install-recommends tmux
+
+# Set keras backend to tensorflow by default
+ENV KERAS_BACKEND tensorflow
+
 # Install PyTables from source
 # COPY ./PyTables /opt/app/PyTables
 # WORKDIR /opt/app/PyTables

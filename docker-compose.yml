@@ -1,0 +1,11 @@
+version: "3"
+
+services:
+  tf-jupyter:
+    image: smipipeline:latest
+    container_name: 'smi'
+    ports:
+      - "8890:8888"
+    volumes: 
+      - C:\Users\somd7w\Desktop\DL_Projects\sarcopenia_segmentation\Muscle_Segmentation:/tf/liversegmentation
+      
