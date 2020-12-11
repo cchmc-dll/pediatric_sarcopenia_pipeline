@@ -7,5 +7,7 @@ services:
     ports:
       - "8890:8888"
     volumes: 
-      - C:\Users\somd7w\Desktop\DL_Projects\sarcopenia_segmentation\Muscle_Segmentation:/tf/liversegmentation
+      - C:\Users\somd7w\Desktop\DL_Projects\sarcopenia_segmentation\Muscle_Segmentation:/tf/smipipeline
+      - D:\Share_GPUserver\SMI:/tf/data
+      - C:\Users\somd7w\Desktop\DL_Projects\sarcopenia_segmentation\valid_data:/tf/output
       

@@ -64,7 +64,7 @@ Here is an example with explanations for the options.
         "overwrite": true, 
         "save_plots": true,
         "show_plots": "true or false; will show plots with matplotlib",
-        "new_tim_dicom_dir_structure": "true or false; New time dicom structure does not have a folder for the accession within top level subject folder",
+        "new_tim_dicom_dir_structure": "true or false; New tim dicom structure does not have a folder for the accession within top level subject folder",
         "series_to_skip_pickle_file": "Path to a file with ImageSeries objects pickled that you want to exclude in addition to those excluded by the filters"
     },
     "muscle_segmentor": {

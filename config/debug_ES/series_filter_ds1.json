@@ -1,0 +1,11 @@
+{
+    "series_filter": {
+        "dicom_dir": "/tf/data",
+        "output_directory": "/tf/output",
+        "model_path": "None",
+        "overwrite": true,
+        "save_plots": true,
+        "show_plots": false,
+        "series_to_skip_pickle_file": "/tf/output/broken_sagittal_and_axial_series.pkl"
+    }
+}
