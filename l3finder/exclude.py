@@ -13,7 +13,6 @@ DISALLOWED_TERMS = [
     "venous",
     "delay",
     "renal",
-    "kidney",
 ]
 
 
@@ -45,7 +44,7 @@ def filter_axial_series(axial_series):
                 exclusions.append(
                     SeriesExclusion(
                         series=ax,
-                        reason="Axial slice thickness not 3.0 or 5.0"
+                        reason="Axial slice thickness not 3.0 or 5.0",
                     )
                 )
             if _name_contains_disallowed_term(ax):

@@ -363,7 +363,8 @@ def separate_series(series):
             in zip(candidates, pool.map(func, candidates))
             if keep
         ]
-
+    
+    print('Filtering series')
     with multiprocessing.Pool(multiprocessing.cpu_count()) as p:
         sagittal_series = pool_filter(p, sag_filter, series)
         axial_series = pool_filter(p, axial_filter, series)

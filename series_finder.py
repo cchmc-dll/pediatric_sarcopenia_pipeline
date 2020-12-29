@@ -125,7 +125,7 @@ def parse_args():
 def main():
     args = parse_args()
 
-    l3_images = find_l3_images(config=vars(args))
+    l3_images = series_finder(config=vars(args))
 
     print("Outputting images")
     output_images(
@@ -140,7 +140,7 @@ def main():
     return l3_images
 
 
-def find_l3_images(config):
+def series_finder(config):
     print("Finding subjects")
 
     subjects = list(
@@ -149,17 +149,27 @@ def find_l3_images(config):
             new_tim_dir_structure=config["new_tim_dicom_dir_structure"]
         )
     )
-    
-    print('Subjects found: ', len(subjects))
-    
+  
 
+    print('Subjects found: ', len(subjects))
+
+    # Filter by valid patients:
+    
+    subjects = [subject for subject in subjects if subject.id_ in config["valid_ids"]]
+    print('Valid Subjects found: ', len(subjects))
+    
+    # Find series images
     print("Finding series")
     series = list(flatten(s.find_series() for s in subjects))
 
     exclusions = []
 
+    # Separate series
     print("Separating series")
     sagittal_series, axial_series, excluded_series = separate_series(series)
+    
+    # Print number of series for each patient:
+    
 
     # print("SHORTENING for development")
     # sagittal_series = sagittal_series[:20]
@@ -168,11 +178,13 @@ def find_l3_images(config):
     # investigate = set(load_subject_ids_to_investigate('/opt/smi/areas_differ_by_gt_10_pct.txt'))
     # sagittal_series = [s for s in sagittal_series if s.subject.id_ in investigate]
     # axial_series = [s for s in axial_series if s.subject.id_ in investigate]
-
+    
+    # Filter series images
     print("Filtering out unwanted series")
     axial_series, ax_exclusions = filter_axial_series(axial_series)
     exclusions.extend(ax_exclusions)
-
+    
+    # Reconstruct missing sagittals
     constructed_sagittals = construct_series_for_subjects_without_sagittals(
         subjects, sagittal_series, axial_series
     )
@@ -197,36 +209,15 @@ def find_l3_images(config):
     sagittal_series.extend(constructed_sagittals)
     sagittal_series, sag_exclusions = filter_sagittal_series(sagittal_series)
     exclusions.extend(sag_exclusions)
+    
+    #  FIlter for non-correlated axial and sagittal images
+    exclusions = filter_sma_and_l3_images(sma_images)
 
-    print("Creating sagittal MIPS")
-    mips = create_sagittal_mips_from_series(
-        many_series=sagittal_series,
-        cache_dir=config.get("cache_dir", None),
-        cache=config.get("cache_intermediate_results", False),
-    )
-    # spacings = [series.spacing for series in sagittal_series]
+    # Print number of series for each patient:
 
-    print("Preprocessing Images")
-    preprocessed_images = preprocess_images(mips)
 
-    # Sagittal mip is redundant, get rid just use preprocessed images
-    sagittal_mips = [SagittalMIP(i) for i in preprocessed_images]
+    # Move/write series for predictions in output dir:
 
-    print("Separate heights for better batching")
-    mips_by_dimension = group_mips_by_dimension(sagittal_mips)
-    print("Dimensions in set:", mips_by_dimension.keys())
-
-    print("Making predictions")
-    prediction_results = []
-    for dimension, sagittal_mips in mips_by_dimension.items():
-        dim_group_results = make_predictions_for_sagittal_mips(
-            sagittal_mips,
-            model_path=config["model_path"],
-            shape=dimension,
-        )
-        prediction_results.extend(dim_group_results)
-    l3_images = build_l3_images(axial_series, prediction_results)
-    return l3_images, exclusions
 
 
 def flatten(sequence):
