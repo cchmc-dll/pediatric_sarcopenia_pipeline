@@ -42,6 +42,7 @@ class ImageSeries:
     sag_z_pos_key = 0
     _pixel_data = None
     _first_dataset = None
+    _slice_loc = None
 
     subject = attr.ib()
     series_path = attr.ib()
@@ -65,6 +66,14 @@ class ImageSeries:
                 dicom_paths=list(self.series_path.iterdir())
             )
         return self._pixel_data
+
+    @property
+    def slice_loc(self):
+        if self._slice_loc is None:
+            self._slice_loc = load_slice_loc_from_paths(
+                dicom_paths=list(self.series_path.iterdir())
+            )
+        return self._slice_loc
 
     def free_pixel_data(self):
         """
@@ -469,6 +478,40 @@ def load_pixel_data_from_paths(dicom_paths):
     try:
         for index, dataset in enumerate(datasets[start_index:]):
             out_array[index] = dataset.pixel_array
+    except ValueError as e:
+        pass
+
+    return out_array
+
+def load_slice_loc_from_paths(dicom_paths):
+    """
+    :param dicom_paths: list of paths of dicoms
+    :return: ndarray of pixel data from given dicom paths in correct order
+    """
+    datasets = list(
+        sorted(
+            (pydicom.dcmread(str(p)) for p in dicom_paths),
+            key=lambda ds: int(ds.InstanceNumber)
+        )
+    )
+
+    first_dataset = datasets[0]
+    first_image = first_dataset.pixel_array
+
+    # Account for potential scout as first image
+    second_image = datasets[1].pixel_array
+    if first_image.shape == second_image.shape:
+        start_index = 0
+    else:
+        start_index = 1
+
+    out_array = np.zeros(
+        shape=(len(datasets),3),
+        dtype=float
+    )
+    try:
+        for index, dataset in enumerate(datasets[start_index:]):
+            out_array[index,:] = dataset.ImagePositionPatient[:]
     except ValueError as e:
         pass
 

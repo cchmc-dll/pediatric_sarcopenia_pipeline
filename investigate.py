@@ -2,6 +2,9 @@ import ipywidgets as widgets
 from ipywidgets import interact, interact_manual
 from pathlib import Path
 import pandas as pd
+from intervals import FloatInterval
+import intervals
+import numpy as np
 
 
 ## Functions to remove duplicates in Section 2
@@ -99,7 +102,15 @@ def print_summary_by_serieslength(df):
         else:
             return df_tmp.sort_values(by=['SeriesNo','ID','Length'],ascending=False)
 
-
+def print_summary_by_subject(df):
+    maxval_len = max(df['Length'])
+    maxval_ser = max(df['SeriesNo'])
+    @interact
+    def show_series(ID='Z1243452'):
+        df_tmp = None
+        df_tmp = df.loc[df['ID'] == ID]
+        print('No of Series: ', len(df_tmp))
+        return df_tmp.sort_values(by=['SeriesNo','ID','Length'],ascending=False)
 
 def get_patientsbycount(df,column,count):
     return df[df[column] == count]['ID'].values.tolist() 
@@ -156,3 +167,333 @@ def print_exclusions_subject(df,ID):
         df_tmp = df.loc[df['ID'].isin(ID)]
         print(" Total number of series excluded for patient list is ", len(df_tmp))
         return df_tmp
+
+
+# Functions for Pair Validity
+
+def remove_series(imseries,serieslist,exlist):
+    if imseries in serieslist:
+        serieslist.remove(imseries)
+    if imseries not in exlist:
+        exlist.append(imseries)
+    return serieslist,exlist
+
+def get_seriesID(df,ID):
+    return df.loc[df['ID']==ID,'SeriesID'].values.tolist()
+    
+def calculate_series_overlap(series1,series2):
+    try:
+        interval1 = FloatInterval(
+        [
+            round(np.min(series1.z_range_pair)),
+            round(np.max(series1.z_range_pair)),
+        ]
+        )
+        interval2 = FloatInterval(
+            [
+                round(np.min(series2.z_range_pair)),
+                round(np.max(series2.z_range_pair)),
+            ]
+        )
+
+        overlap = interval1 & interval2
+        longer_length = max(interval1.length,interval2.length)
+        return round((overlap.length / longer_length),3)
+    except intervals.exc.IllegalArgument: # raised if there is no overlap
+        return False
+    except Exception as e:
+        return e
+
+
+def calculate_missing_slices_axials(series1):
+    try:
+        interval1 = FloatInterval(
+            [
+                round(np.min(series1.z_range_pair)),
+                round(np.max(series1.z_range_pair)),
+            ]
+        )
+        
+        Thickness_1 = series1.slice_thickness
+        nslices1 =  round(interval1.length/Thickness_1)
+        missingslices1 = nslices1 - series1.number_of_dicoms
+        if missingslices1 < 0:
+            return 1.0
+        else:
+            missinglength1 = missingslices1*Thickness_1
+
+            # print('nslices: ',nslices1, ' interval_len: ', interval1.length, 
+            #       'missing slices: ', missingslices1, 'missing length: ',missinglength1)
+
+            return  round(1 - (missinglength1)/(interval1.length),3)
+    except:
+        return 0
+
+
+def calculate_missing_slices_sagittals(series2):
+    try:
+        interval2 = FloatInterval(
+            [
+                round(min(series2.slice_loc[0][0],series2.slice_loc[-1][0])),
+                round(max(series2.slice_loc[0][0],series2.slice_loc[-1][0])),
+            ]
+        )
+        
+        Thickness_2 = series2.slice_thickness
+        nslices2 =  round(interval2.length/Thickness_2)
+        missingslices2 = nslices2 - series2.number_of_dicoms
+        if missingslices2 < 0:
+            missinglength2 = 0
+        else:
+            missinglength2 = missingslices2*Thickness_2
+        # print('nslices: ',nslices2, ' interval_len: ', interval2.length, 'missing slices: ', missingslices2, 'missing length: ',missinglength2)
+        return  round(1 - (missinglength2)/(interval2.length),3)
+    except:
+        return 0
+        
+def calculate_missing_slices_score(series1,series2):
+    try:
+        interval1 = FloatInterval(
+            [
+                round(np.min(series1.z_range_pair)),
+                round(np.max(series1.z_range_pair)),
+            ]
+        )
+        Thickness_1 = series1.slice_thickness
+        nslices1 =  round(interval1.length/Thickness_1)
+        missingslices1 = nslices1 - series1.number_of_dicoms
+        
+        if missingslices1 < 0:
+            missinglength1 = 0
+        else:
+            missinglength1 = missingslices1*Thickness_1
+    except:
+        return 0
+
+    try:
+        interval2 = FloatInterval(
+            [
+                round(min(series2.slice_loc[0][0],series2.slice_loc[-1][0])),
+                round(max(series2.slice_loc[0][0],series2.slice_loc[-1][0])),
+            ]
+        )
+        Thickness_2 = series2.slice_thickness
+        nslices2 =  round(interval2.length/Thickness_2)
+        missingslices2 = nslices2 - series2.number_of_dicoms
+        if missingslices2 < 0:
+            missinglength2 = 0
+        else:
+            missinglength2 = missingslices2*Thickness_2
+    except:
+        return 0    
+    #print("int1: ", interval1, "int2: ", interval2)
+    return  round(1 - (missinglength1+missinglength2)/(interval1.length+interval2.length),3)
+    
+    
+def print_series_overlap(df_ax,df_sag,axial_series,sagittal_series,subjects):
+    @interact
+    def show_overlap(ID = 'Z416634'):
+        df  = pd.DataFrame(columns=['Axial','Sagittal','Overlap','MissingScore','PairValidity','AxSlices','SagSlices'])
+        axials = get_seriesID(df_ax,ID)
+        sagittals = get_seriesID(df_sag,ID)
+        axseries = []
+        sagseries = []
+        for axial in axials:
+            axseries.append(get_subject_series(ID,axial,subjects))
+        for sag in sagittals:
+            sagseries.append(get_subject_series(ID,sag,subjects))
+        
+        i = 0   
+        for a in axseries:
+            for s in sagseries:
+                df.loc[i,'AxSlices'] = a.number_of_dicoms
+                df.loc[i,'Axial'] = a.id_
+                df.loc[i,'SagSlices'] = s.number_of_dicoms
+                df.loc[i,'Sagittal'] = s.id_
+                df.loc[i,'Overlap'] = round(calculate_series_overlap(a,s),3)
+                df.loc[i,'MissingScore'] = round(calculate_missing_slices_score(a,s),3)
+                df.loc[i,'PairValidity'] = df.loc[i,'Overlap'] + df.loc[i,'MissingScore']
+                i += 1
+
+        return df.sort_values(by=['PairValidity'], ascending=False)
+    
+
+# MOre sophisticated than get_finalpairs_df, used for incomplete studies & Parallel implementation that returns lists    
+def filter_finalpairs(ID,df_ax,df_sag,subjects):
+    try:
+        axials = get_seriesID(df_ax,ID)
+        sagittals = get_seriesID(df_sag,ID)
+        axseries = []
+        sagseries = []
+        for axial in axials:
+            a_s = get_subject_series(ID,axial,subjects)
+            if a_s.number_of_dicoms > 10:
+                axseries.append(a_s)
+        for sag in sagittals:
+            s_s = get_subject_series(ID,sag,subjects)
+            if s_s.number_of_dicoms > 10:
+                sagseries.append(s_s)
+
+        i = 0
+        df_tmp =  pd.DataFrame(columns=['Axial','Sagittal','Overlap','MissingScore','PairValidity','AxSlices','SagSlices','AxThick','SagThick'])
+        if axseries: 
+            for a in axseries:
+                df_tmp.loc[i,:] = None
+                if sagseries:
+                    for s in sagseries:
+                        df_tmp.loc[i,'AxSlices'] = a.number_of_dicoms
+                        df_tmp.loc[i,'SagSlices'] = s.number_of_dicoms
+                        df_tmp.loc[i,'Axial'] = a.id_
+                        df_tmp.loc[i,'Sagittal'] = s.id_
+                        df_tmp.loc[i,'Overlap'] = calculate_series_overlap(a,s)
+                        df_tmp.loc[i,'MissingScore'] = calculate_missing_slices_score(a,s)
+                        if isinstance(df_tmp.loc[i,'Overlap'], (int,float)):
+                            df_tmp.loc[i,'PairValidity'] = df_tmp.loc[i,'Overlap'] + df_tmp.loc[i,'MissingScore']
+                        else:
+                            df_tmp.loc[i,'PairValidity'] =  df_tmp.loc[i,'MissingScore'] 
+                        
+                        try:
+                            df_tmp.loc[i,'AxThick'] = a.slice_thickness
+                        except:
+                            df_tmp.loc[i,'AxThick'] = 0
+                        
+                        try:
+                            df_tmp.loc[i,'SagThick'] = s.slice_thickness
+                        except:
+                            df_tmp.loc[i,'SagThick'] = 0
+
+                        i += 1
+                else:
+                        df_tmp.loc[i,'AxSlices'] = a.number_of_dicoms
+                        df_tmp.loc[i,'Axial'] = a.id_
+                        try:
+                            df_tmp.loc[i,'AxThick'] = a.slice_thickness
+                        except:
+                            df_tmp.loc[i,'AxThick'] = 0
+                        
+                        df_tmp.loc[i,'MissingScore'] = round(calculate_missing_slices_axials(a),3)
+                        i += 1
+        elif sagseries:  
+            for s in sagseries:
+                df_tmp.loc[i,:] = None
+                df_tmp.loc[i,'SagSlices'] = s.number_of_dicoms
+                df_tmp.loc[i,'Sagittal'] = s.id_
+                df_tmp.loc[i,'MissingScore'] = round(calculate_missing_slices_sagittals(s),3)
+                try:
+                    df_tmp.loc[i,'SagThick'] = s.slice_thickness
+                except:
+                    df_tmp.loc[i,'SagThick'] = 0
+                    
+                i += 1
+        
+        df_tmp =  df_tmp.sort_values(by=['PairValidity','MissingScore','AxThick','SagThick','SagSlices'], 
+                                     ascending=[False,False,False,False,True])
+        if axseries or sagseries:
+            #display(df_tmp)
+            result = df_tmp.iloc[0,:].values.tolist()
+            result.insert(0,ID)
+            return result
+    except Exception as e:
+        return [ID,None,None,None,None,None,None,None,None,None]
+
+
+
+def get_finalpairs_df(df_ax,df_sag,subjects):
+    df  = pd.DataFrame(columns=['ID','Axial','Sagittal','Overlap','MissingScore','PairValidity','AxSlices','SagSlices'])
+    
+    for sid,subject in enumerate(subjects):
+        ID = subject.id_
+        print('Processing: ',sid,"  ", ID) 
+        try:
+            axials = get_seriesID(df_ax,ID)
+            sagittals = get_seriesID(df_sag,ID)
+            axseries = []
+            sagseries = []
+            for axial in axials:
+                axseries.append(get_subject_series(ID,axial,subjects))
+            for sag in sagittals:
+                sagseries.append(get_subject_series(ID,sag,subjects))
+
+            df.loc[sid,'ID'] = ID
+            df.iloc[sid,1:] = None
+            i = 0
+            df_tmp =  pd.DataFrame(columns=['Axial','Sagittal','Overlap','MissingScore','PairValidity','AxSlices','SagSlices'])
+            if axseries: 
+                for a in axseries:
+                    df_tmp.loc[i,:] = None
+                    if sagseries:
+                        for s in sagseries:
+                            df_tmp.loc[i,'AxSlices'] = a.number_of_dicoms
+                            df_tmp.loc[i,'SagSlices'] = s.number_of_dicoms
+                            df_tmp.loc[i,'Axial'] = a.id_
+                            df_tmp.loc[i,'Sagittal'] = s.id_
+                            df_tmp.loc[i,'Overlap'] = round(calculate_series_overlap(a,s),3)
+                            df_tmp.loc[i,'MissingScore'] = round(calculate_missing_slices_score(a,s),3)
+                            df_tmp.loc[i,'PairValidity'] = df_tmp.loc[i,'Overlap'] + df_tmp.loc[i,'MissingScore']
+                            i += 1
+                    else:
+                            df_tmp.loc[i,'AxSlices'] = a.number_of_dicoms
+                            df_tmp.loc[i,'Axial'] = a.id_
+                            df_tmp.loc[i,'MissingScore'] = round(calculate_missing_slices_axials(a),3)
+                            i += 1
+            elif sagseries:  
+                for s in sagseries:
+                    df_tmp.loc[i,:] = None
+                    df_tmp.loc[i,'SagSlices'] = s.number_of_dicoms
+                    df_tmp.loc[i,'Sagittal'] = s.id_
+                    df_tmp.loc[i,'MissingScore'] = round(calculate_missing_slices_sagittals(s),3)
+                    i += 1
+
+
+            df_tmp =  df_tmp.sort_values(by=['PairValidity','MissingScore'], ascending=False)
+            if axseries or sagseries:
+                df.iloc[sid,1:] = df_tmp.iloc[0,:]
+        except Exception as e:
+            print('Error: ',str(e))
+            
+
+    return df
+
+
+# Function to Exlude Subjects from subject and series lists:
+
+def indices(lst, element):
+    result = []
+    offset = -1
+    while True:
+        try:
+            offset = lst.index(element, offset+1)
+        except ValueError:
+            return result
+        result.append(offset)
+
+# Remove subjects
+def exclude_subjects(subs,axseries,sagseries,exsubjects,ID):
+    # Remove in subjects
+    try:
+        index = [x.id_ for x in subs].index(ID)
+    except:
+        index = None
+    if index: 
+        exsubjects.append(subs[index])
+        del subs[index]
+        
+    # Remove in Axial series
+    axlist = [x.subject.id_ for x in axseries]
+    try:
+        index = indices(axlist,ID)
+    except:
+        index = None
+    if index:
+        axseries= [i for j, i in enumerate(axseries) if j not in index]
+    
+    # Remove in Sagittal series
+    saglist = [x.subject.id_ for x in sagseries]
+    try:
+        index = indices(saglist,ID)
+    except:
+        index = None
+    if index:
+        sagseries= [i for j, i in enumerate(sagseries) if j not in index]
+
+    return (subs,axseries,sagseries,exsubjects)
