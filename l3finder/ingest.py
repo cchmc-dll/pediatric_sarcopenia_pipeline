@@ -116,6 +116,7 @@ class ImageSeries:
     @reify
     def slice_thickness(self):
         return float(self._any_dcm_dataset.SliceThickness)
+        
 
     def image_at_pos_in_px(self, pos, sagittal_z_pos_pair):
         l3_axial_index, metadata = self.image_index_at_pos(pos, sagittal_z_pos_pair)
