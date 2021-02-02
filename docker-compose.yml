@@ -1,13 +1,16 @@
-version: "3"
+version: "2"
 
 services:
-  tf-jupyter:
-    image: smipipeline:latest
-    container_name: 'smi'
+  tf-smi:
+    image: chezhipower/smi_pipeline:latest
+    container_name: 'smi_on_server'
     ports:
-      - "8890:8888"
+      - "8886:8888"
     volumes: 
-      - C:\Users\somd7w\Desktop\DL_Projects\sarcopenia_segmentation\Muscle_Segmentation:/tf/smipipeline
-      - D:\Share_GPUserver\SMI:/tf/data
-      - C:\Users\somd7w\Desktop\DL_Projects\sarcopenia_segmentation\valid_data:/tf/output
-      
+      - /home/elan/sarcopenia_segmentation/Muscle_Segmentation:/tf/smipipeline
+      - /data/SMI_2:/tf/data
+      - /home/elan/sarcopenia_segmentation/pickles:/tf/pickles
+      - /home/elan/sarcopenia_segmentation/final_CT:/tf/output
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=0

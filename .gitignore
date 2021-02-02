@@ -1,5 +1,6 @@
 # Potentially sensitive data +
 # Image file extensions so no patient data is accidentally uploaded
+/docker-compose.yml
 /datasets
 /ImageData_*
 /output
@@ -18,6 +19,7 @@
 *.NII
 *.NIFTI
 *.H5
+*.csv
 fabric.yml
 
 # IDE stuff
