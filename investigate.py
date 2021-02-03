@@ -5,6 +5,8 @@ import pandas as pd
 from intervals import FloatInterval
 import intervals
 import numpy as np
+import os
+import shutil
 
 
 ## Functions to remove duplicates in Section 2
@@ -35,15 +37,6 @@ def get_subject_series(ID,SID,subjects):
             for s in (seriess):
                 if s.id_==SID:
                     return s 
-
-def get_subject_series(ID,SID,subjects):
-    for subject in subjects:
-        if subject.id_==ID:
-            seriess =  list(subject.find_series())
-            for s in (seriess):
-                if s.id_==SID:
-                    return s 
-
 
 # Section 3 - Process Series functions
 def get_summary_dfs(axial_series,sagittal_series,subjects):
@@ -181,7 +174,7 @@ def remove_series(imseries,serieslist,exlist):
 def get_seriesID(df,ID):
     return df.loc[df['ID']==ID,'SeriesID'].values.tolist()
     
-def calculate_series_overlap(series1,series2):
+def calculate_series_overlap(series1,series2,verbose=False):
     try:
         interval1 = FloatInterval(
         [
@@ -195,9 +188,16 @@ def calculate_series_overlap(series1,series2):
                 round(np.max(series2.z_range_pair)),
             ]
         )
+        if verbose:
+            print("interval 1:", interval1)
+            print("interval 2:", interval2)
 
         overlap = interval1 & interval2
+        if verbose:
+            print('Overlap:  ', overlap)
         longer_length = max(interval1.length,interval2.length)
+        if verbose:
+            print('Overlap:  ', overlap, 'longer len: ', longer_length)
         return round((overlap.length / longer_length),3)
     except intervals.exc.IllegalArgument: # raised if there is no overlap
         return False
@@ -205,7 +205,7 @@ def calculate_series_overlap(series1,series2):
         return e
 
 
-def calculate_missing_slices_axials(series1):
+def calculate_missing_slices_axials(series1,verbose=False):
     try:
         interval1 = FloatInterval(
             [
@@ -217,14 +217,14 @@ def calculate_missing_slices_axials(series1):
         Thickness_1 = series1.slice_thickness
         nslices1 =  round(interval1.length/Thickness_1)
         missingslices1 = nslices1 - series1.number_of_dicoms
+        if verbose:
+            print('Expected Slices: ',nslices1, ' interval_len: ', interval1.length, 'Slice Thickness: ',Thickness_1,
+                  ' Slices present: ', series1.number_of_dicoms)
+            
         if missingslices1 < 0:
             return 1.0
         else:
             missinglength1 = missingslices1*Thickness_1
-
-            # print('nslices: ',nslices1, ' interval_len: ', interval1.length, 
-            #       'missing slices: ', missingslices1, 'missing length: ',missinglength1)
-
             return  round(1 - (missinglength1)/(interval1.length),3)
     except:
         return 0
@@ -393,6 +393,8 @@ def filter_finalpairs(ID,df_ax,df_sag,subjects):
             result = df_tmp.iloc[0,:].values.tolist()
             result.insert(0,ID)
             return result
+        else:
+            return [ID,None,None,None,None,None,None,None,None,None]
     except Exception as e:
         return [ID,None,None,None,None,None,None,None,None,None]
 
@@ -467,33 +469,34 @@ def indices(lst, element):
             return result
         result.append(offset)
 
-# Remove subjects
-def exclude_subjects(subs,axseries,sagseries,exsubjects,ID):
-    # Remove in subjects
-    try:
-        index = [x.id_ for x in subs].index(ID)
-    except:
-        index = None
-    if index: 
-        exsubjects.append(subs[index])
-        del subs[index]
-        
-    # Remove in Axial series
-    axlist = [x.subject.id_ for x in axseries]
-    try:
-        index = indices(axlist,ID)
-    except:
-        index = None
-    if index:
-        axseries= [i for j, i in enumerate(axseries) if j not in index]
-    
-    # Remove in Sagittal series
-    saglist = [x.subject.id_ for x in sagseries]
-    try:
-        index = indices(saglist,ID)
-    except:
-        index = None
-    if index:
-        sagseries= [i for j, i in enumerate(sagseries) if j not in index]
+# 
 
-    return (subs,axseries,sagseries,exsubjects)
+def move_subject(sub,df_final,target):
+    try:
+        df_row = df_final[df_final['ID']==sub.id_]
+        srcpath = str(sub.path)
+        display(df_row)
+        # Create Patient folder,
+        targetpath = os.path.join(target,sub.id_)
+        try: 
+            os.mkdir(targetpath) 
+        except Exception:
+            pass
+            
+        series = list(sub.find_series())
+        ax_series = [a for a in series if a.id_ == df_row['Axial'].values[0]]
+        ##print('Comes here', df_row['Sagittal'].values[0])
+        try:
+            shutil.copytree(str(ax_series[0].series_path), os.path.join(targetpath,ax_series[0].id_)) 
+        except:
+            pass
+        
+        if df_row['Sagittal'].values[0]:
+            sag_series = [a for a in series if a.id_ == df_row['Sagittal'].values[0]]
+            try:
+                shutil.copytree(str(sag_series[0].series_path), os.path.join(targetpath,sag_series[0].id_)) 
+            except:
+                pass
+        return 1
+    except Exception as e:
+        return 0

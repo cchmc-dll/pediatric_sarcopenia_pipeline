@@ -311,7 +311,7 @@ class Subject:
 
     @property
     def id_(self):
-        return self.path.name.split('_')[-1]
+        return self.path.name.split('-')[-1]
 
     def find_series(self):
         for accession_path in self.path.iterdir():
