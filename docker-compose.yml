@@ -8,9 +8,17 @@ services:
       - "8886:8888"
     volumes: 
       - /home/elan/sarcopenia_segmentation/Muscle_Segmentation:/tf/smipipeline
-      - /data/SMI_2:/tf/data
+      - /home/elan/sarcopenia_segmentation/models:/tf/models
       - /home/elan/sarcopenia_segmentation/pickles:/tf/pickles
-      - /home/elan/sarcopenia_segmentation/final_CT:/tf/output
+      - /home/elan/sarcopenia_segmentation/final_CT:/tf/data
     runtime: nvidia
     environment:
       - NVIDIA_VISIBLE_DEVICES=0
+
+
+   # For Preprocessing
+    # volumes: 
+    #   - /home/elan/sarcopenia_segmentation/Muscle_Segmentation:/tf/smipipeline
+    #   - /mnt/ew18-00053_D/SMI:/tf/data
+    #   - /home/elan/sarcopenia_segmentation/pickles:/tf/pickles
+    #   - /home/elan/sarcopenia_segmentation/final_CT:/tf/output

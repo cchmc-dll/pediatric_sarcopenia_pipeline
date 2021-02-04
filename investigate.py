@@ -475,7 +475,6 @@ def move_subject(sub,df_final,target):
     try:
         df_row = df_final[df_final['ID']==sub.id_]
         srcpath = str(sub.path)
-        display(df_row)
         # Create Patient folder,
         targetpath = os.path.join(target,sub.id_)
         try: 
