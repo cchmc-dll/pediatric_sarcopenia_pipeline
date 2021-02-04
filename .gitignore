@@ -1,6 +1,6 @@
 # Potentially sensitive data +
 # Image file extensions so no patient data is accidentally uploaded
-/docker-compose.yml
+docker-compose.yml
 /datasets
 /ImageData_*
 /output

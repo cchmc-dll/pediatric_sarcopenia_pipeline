@@ -1,19 +1,19 @@
-version: "2"
+# version: "2"
 
-services:
-  tf-smi:
-    image: chezhipower/smi_pipeline:latest
-    container_name: 'smi_on_server'
-    ports:
-      - "8886:8888"
-    volumes: 
-      - /home/elan/sarcopenia_segmentation/Muscle_Segmentation:/tf/smipipeline
-      - /home/elan/sarcopenia_segmentation/models:/tf/models
-      - /home/elan/sarcopenia_segmentation/pickles:/tf/pickles
-      - /home/elan/sarcopenia_segmentation/final_CT:/tf/data
-    runtime: nvidia
-    environment:
-      - NVIDIA_VISIBLE_DEVICES=0
+# services:
+#   tf-smi:
+#     image: chezhipower/smi_pipeline:latest
+#     container_name: 'smi_on_server'
+#     ports:
+#       - "8886:8888"
+#     volumes: 
+#       - /home/elan/sarcopenia_segmentation/Muscle_Segmentation:/tf/smipipeline
+#       - /home/elan/sarcopenia_segmentation/models:/tf/models
+#       - /home/elan/sarcopenia_segmentation/pickles:/tf/pickles
+#       - /home/elan/sarcopenia_segmentation/final_CT:/tf/data
+#     runtime: nvidia
+#     environment:
+#       - NVIDIA_VISIBLE_DEVICES=0
 
 
    # For Preprocessing
@@ -22,3 +22,17 @@ services:
     #   - /mnt/ew18-00053_D/SMI:/tf/data
     #   - /home/elan/sarcopenia_segmentation/pickles:/tf/pickles
     #   - /home/elan/sarcopenia_segmentation/final_CT:/tf/output
+
+version: "3"
+
+services:
+  tf-smipc:
+    image: smipipeline:latest
+    container_name: 'smi'
+    ports:
+      - "8890:8888"
+    volumes: 
+      - C:\Users\somd7w\Desktop\DL_Projects\sarcopenia_segmentation\Muscle_Segmentation:/tf/smipipeline
+      - D:\Share_GPUserver\SMI:/tf/data
+      - C:\Users\somd7w\Desktop\DL_Projects\sarcopenia_segmentation\valid_data:/tf/pickles
+      
