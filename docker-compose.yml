@@ -34,5 +34,5 @@ services:
     volumes: 
       - C:\Users\somd7w\Desktop\DL_Projects\sarcopenia_segmentation\Muscle_Segmentation:/tf/smipipeline
       - D:\Share_GPUserver\SMI:/tf/data
-      - C:\Users\somd7w\Desktop\DL_Projects\sarcopenia_segmentation\valid_data:/tf/pickles
+      - C:\Users\somd7w\Desktop\DL_Projects\sarcopenia_segmentation\pickles:/tf/pickles
       
