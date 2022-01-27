@@ -1,13 +1,29 @@
-version: '2'
+version: "2"
+
 services:
-  jupyter:
-    restart: always
-    container_name: 'garfield_gpu'
-    build: .
-    volumes:
-      - ./workdir:/notebooks #notebook directory
+  tf-pred: # Run prediction on the final data in (from /final_CT)
+    image: chezhipower/smi_pipeline:latest
+    container_name: 'smi_on_server3'
     ports:
-      - 8888:8888 #exposed port for jupyter
+      - "8884:8888"
+    volumes: 
+      - /home/elan/sarcopenia_segmentation/Muscle_Segmentation:/tf/smipipeline
+      - /home/elan/sarcopenia_segmentation/pickles:/tf/pickles
+      - /home/elan/sarcopenia_segmentation/final_CT:/tf/data  
+      - /home/elan/sarcopenia_segmentation/models:/tf/models   
+      - /home/elan/sarcopenia_segmentation/output:/tf/output
+    runtime: nvidia
     environment:
-      - NVIDIA_VISIBLE_DEVICES=0 # which gpu do you want to use for this container
-      - PASSWORD=yourstrongpassword
+      - NVIDIA_VISIBLE_DEVICES=0
+  rpy: # Run Analysis on the final data in (from /final_CT)
+    image: rpy2/jupyter_ds-ubuntu
+    container_name: 'smi_rpy'
+    ports:
+      - "8898:8888"
+    volumes: 
+      - /home/elan/sarcopenia_segmentation/Muscle_Segmentation:/home/jupyteruser/smipipeline
+      - /home/elan/sarcopenia_segmentation/pickles:/home/jupyteruser/pickles
+      - /home/elan/sarcopenia_segmentation/final_CT:/home/jupyteruser/data  
+      - /home/elan/sarcopenia_segmentation/models:/home/jupyteruser/models   
+      - /home/elan/sarcopenia_segmentation/output:/home/jupyteruser/output
+    

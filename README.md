@@ -1,6 +1,9 @@
 
+<<<<<<< HEAD
 # pediatric_sarcopenia_pipeline
 Code for deep learning pipeline being developed at Cincinnati Children's for pediatric sarcopenia diagnosis.
+=======
+>>>>>>> master
 
 # Muscle Segmentation Project
 
