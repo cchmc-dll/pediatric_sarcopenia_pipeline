@@ -3,6 +3,8 @@
 /datasets
 /ImageData_*
 /output
+/MRI_notebooks
+/dataset_manifests
 /predictions
 *.h5
 /dicom_anonymizer/tests/data
