@@ -1,4 +1,7 @@
 
+# pediatric_sarcopenia_pipeline
+Code for deep learning pipeline being developed at Cincinnati Children's for pediatric sarcopenia diagnosis.
+
 # Muscle Segmentation Project
 
 Most important files are run_sma_experiment.py and L3_finder.py. These and other files
