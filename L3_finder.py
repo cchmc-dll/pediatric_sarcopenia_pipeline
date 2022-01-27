@@ -267,6 +267,10 @@ class L3Image:
             self.prediction_result.prediction.predicted_y_in_px,
             sagittal_z_pos_pair=self.sagittal_series.z_range_pair
         )
+    
+    def pixel_data_manualL3(self, manualL3):
+        # Provide manual L3 location starting with 1 (not 0).
+        return self.axial_series.image_at_manualL3(manualL3)
 
     @property
     def height_of_sagittal_image(self):

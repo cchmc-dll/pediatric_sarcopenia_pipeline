@@ -3,18 +3,19 @@ import tables
 from pyimagesearch.nn.conv.MLP import MLP, MLP10
 from pyimagesearch.nn.conv.Resnet3D import Resnet3D
 from pyimagesearch.nn.conv.Unet2D import Unet2D, Unet2D_BN, Unet2D_BN_MOD
-from keras.utils import plot_model
-from keras.optimizers import SGD, Adam
-from keras.callbacks import EarlyStopping
-from keras.callbacks import LearningRateScheduler
-from keras.utils.training_utils import multi_gpu_model
-from alt_model_checkpoint import AltModelCheckpoint
+from tensorflow.keras.utils import plot_model
+from tensorflow.keras.optimizers import SGD, Adam
+from tensorflow.keras.callbacks import EarlyStopping
+from tensorflow.keras.callbacks import LearningRateScheduler
+from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.utils import multi_gpu_model
+#from alt_model_checkpoint import AltModelCheckpoint
 import matplotlib.pyplot as plt
 from pyimagesearch.utils.generator_utils_Elan import *
 from keras import Model
 from pyimagesearch.callbacks.datagenerator import *
-from keras.layers import concatenate
-from keras.layers.core import Dense
+from tensorflow.keras.layers import concatenate
+from tensorflow.keras.layers import Dense
 from sklearn.model_selection import train_test_split
 from unet3d.metrics import dice_coefficient_monitor, weighted_dice_coefficient_loss_2D
 

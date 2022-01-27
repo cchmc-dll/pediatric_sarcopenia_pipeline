@@ -1,0 +1,17 @@
+{
+    "l3_finder": {
+        "tif_dir": "/tf/data/sarcopeniaMR_L3_TIF",
+        "model_path_dir": "/tf/models/l3/cv_final",
+        "output_directory": "/tf/output/cv_poorl3/l3",
+        "overwrite": true,
+        "save_plots": true,
+        "show_plots": false,
+        "new_tim_dicom_dir_structure": true,
+        "cache_intermediate_results": true,
+        "cache_dir": "/tf/_cache/"
+    },
+    "muscle_segmentor": {
+        "model_path_dir": "/tf/models/muscle/cv_final",
+        "output_directory": "/tf/output/mri_ms_tif_inverted"
+    }
+}

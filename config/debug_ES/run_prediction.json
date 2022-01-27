@@ -1,0 +1,17 @@
+{
+    "l3_finder": {
+        "dicom_dir": "/tf/data",
+        "model_path": "/tf/models/l3/child_9_slice_w_transfer_fold_3.h5",
+        "output_directory": "/tf/output/l3",
+        "overwrite": true,
+        "save_plots": true,
+        "show_plots": false,
+        "new_tim_dicom_dir_structure": true,
+        "cache_intermediate_results": true,
+        "cache_dir": "/tf/_cache/"
+    },
+    "muscle_segmentor": {
+        "model_path": "/tf/models/muscle/muscle_model_combined_dice_219_fold_1.h5",
+        "output_directory": "/tf/output/ms"
+    }
+}

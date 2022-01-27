@@ -1,10 +1,10 @@
 import os
-import keras.callbacks as cbks
-from keras.callbacks import ModelCheckpoint, CSVLogger
-from keras.models import load_model
+import tensorflow.keras.callbacks as cbks
+from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger
+from tensorflow.keras.models import load_model
 import pandas as pd
-from keras import backend as K
-from keras.utils.training_utils import multi_gpu_model
+from tensorflow.keras import backend as K
+from tensorflow.keras.utils import multi_gpu_model
 
 class BaseModelWrapper():
 

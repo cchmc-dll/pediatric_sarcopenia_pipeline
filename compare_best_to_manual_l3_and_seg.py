@@ -116,6 +116,49 @@ def seg_model_configs(seg_models_dir):
     return result
 
 
+def do_segmentation_cv(seg_model_config,l3_images, manualL3s=None):
+    print("- Loading l3 axial images")
+    l3_ndas = run_sma_experiment.load_l3_ndas(l3_images, manualL3s)
+    print("- Removing table")
+    tableless_images = run_sma_experiment.remove_table(l3_ndas)
+    print("- Thresholding images")
+    thresholded_images = run_sma_experiment.threshold_images(tableless_images)
+    print("- Normalizing images")
+    normalized_images = run_sma_experiment.normalize_images(thresholded_images)
+    print("- Resizing images")
+    resized_images = run_sma_experiment.resize_images(normalized_images)
+    xs = run_sma_experiment.reshape_for_model(resized_images)
+    reshaped_masks_list = []
+    print(' Segmenting using all model configs')
+    for config in seg_model_config:
+        print("segmenting for model", config)
+        model = run_sma_experiment.configure_and_load_model(config["model_path"])
+        ys = model.predict(xs)
+        masks = run_sma_experiment.convert_to_images(ys)        
+        reshaped_masks = run_sma_experiment.reshape_masks(masks)
+        reshaped_masks_list.append(reshaped_masks)
+    average_masks = []
+    print("Finding Average Masks")
+    for one_subjects_masks in zip(*reshaped_masks_list):
+        sitk_images = [sitk.Cast(sitk.GetImageFromArray(mask), sitk.sitkUInt8)
+                       for mask in one_subjects_masks]
+        result = sitk.LabelVoting(sitk_images, 1)
+        arr = sitk.GetArrayFromImage(result)
+        average_masks.append(arr)
+    print("Finding sma")
+    smas = []
+    for index, mask in enumerate(average_masks):
+        smas.append(
+            run_sma_experiment.calculate_sma_for_series_and_mask(
+                series=l3_images[index].axial_series,
+                mask=mask,
+            )
+        )
+    return smas, average_masks,tableless_images
+    
+
+
+
 def do_segmentation_for_each_config(seg_model_config, l3_images):
     segmentations_for_each_model = []
     for config in seg_model_config:

@@ -93,16 +93,11 @@ def normalize_data_2D(data, mean, std):
     data /= std[:, np.newaxis, np.newaxis]
     return data
 
-
 def normalize_data_storage_2D(data_storage):
     means = list()
     stds = list()
     for index in range(data_storage.shape[0]):
         data = data_storage[index]
-        if index == 0:
-            cv2.imshow('Un-normalized',data[0])
-            cv2.waitKey(1000)
-
         means.append(data.mean(axis=(1, 2)))
         stds.append(data.std(axis=(1, 2)))
         
@@ -111,13 +106,9 @@ def normalize_data_storage_2D(data_storage):
     print("mean:", mean, "std:", std)
     for index in range(data_storage.shape[0]):
         data_storage[index] = normalize_data_2D(data_storage[index], mean, std)
-        if index == 0:
-            img = data_storage[index]
-            cv2.imshow('Normalized',img[0])
-            cv2.waitKey(1000)
-    
-    cv2.destroyAllWindows()
-    return data_storage
+        
+    #cv2.destroyAllWindows()
+    return mean, std
 
 
 def normalize_clinical_storage(data_storage):
@@ -151,7 +142,7 @@ def resize_pad(im,desired_size,label=False): # Preserves aspect ratio and resize
         value=color)
     return new_im
 
-
+## This works only for TOSHIBA (CANON) CTs
 def reslice_image_set_TIF(in_files, image_shape, out_files=None, label_indices=None,slice_number=0, use_middle_slice=False):
     images = list()
     for f, file in enumerate(in_files):
@@ -162,6 +153,8 @@ def reslice_image_set_TIF(in_files, image_shape, out_files=None, label_indices=N
             tiff = io.imread(file)
             image = tiff
 
+        print('Before Resizing image max: ', np.max(image))
+        print('Before Resizing image min: ', np.min(image))
             # Check if LABEL
         label = False
         if f == label_indices:
@@ -178,6 +171,7 @@ def reslice_image_set_TIF(in_files, image_shape, out_files=None, label_indices=N
             image = resize_pad(image,desired_size,label)
 
         print('After Resizing image max: ', np.max(image))
+        print('After Resizing image min: ', np.min(image))
         images.append(image)
 
     if out_files:

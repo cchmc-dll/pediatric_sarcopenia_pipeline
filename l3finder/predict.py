@@ -35,6 +35,7 @@ def make_predictions_for_sagittal_mips(sagittal_mips, model_path, shape):
     # can't fit every picture in memory, so have to do this unfortunately
     images = np.empty(shape=(len(sagittal_mips), *shape), dtype=np.int8)
     unpadded_heights = np.empty(shape=len(sagittal_mips), dtype=np.int32)
+    
     for index, mip in enumerate(sagittal_mips):
         images[index] = mip.preprocessed_image.pixel_data
         unpadded_heights[index] = mip.preprocessed_image.unpadded_height
@@ -46,18 +47,27 @@ def make_predictions_for_sagittal_mips(sagittal_mips, model_path, shape):
         for pred, height
         in zip(predictions, unpadded_heights)
     ]
-    display_images = [
-        draw_line_on_predicted_image(p, upi[0], sag_mip)
-        for p, upi, sag_mip
-        in zip(predictions, unpadded_images, sagittal_mips)
-    ]
+    # display_images = [
+    #     draw_line_on_predicted_image(p, upi[0], sag_mip)
+    #     for p, upi, sag_mip
+    #     in zip(predictions, unpadded_images, sagittal_mips)
+    # ]
+    # return [
+    #     Result(prediction, display_image, input_mip)
+    #     for prediction, display_image, input_mip
+    #     in zip(predictions, display_images, sagittal_mips)
+    # ]
+    ### Modifying to handle errors separately:
+    results = []
+    error_results = []
+    for p, upi, sag_mip in zip(predictions, unpadded_images, sagittal_mips):
+        display_image,error = draw_line_on_predicted_image(p, upi[0], sag_mip)
+        if not error:
+            results.append(Result(p, display_image,sag_mip))
+        else:
+            error_results.append(Result(p, display_image,sag_mip))
 
-    return [
-        Result(prediction, display_image, input_mip)
-        for prediction, display_image, input_mip
-        in zip(predictions, display_images, sagittal_mips)
-    ]
-
+    return results, error_results
 
 def predict_batch(batch, model):
     predictions = model.predict(batch)
@@ -101,8 +111,26 @@ def draw_line_on_predicted_image(prediction, unpadded_image, sag_mip):
     output = unpadded_image.reshape(
         unpadded_image.shape[0], unpadded_image.shape[1]
     )
+    # try:
+    #     output[rr, cc] = np.iinfo(output.dtype).max
+    # except IndexError:
+    #     print(
+    #         "error drawing line on preprocessed_image for:",
+    #         sag_mip.subject_id,
+    #         file=sys.stderr,
+    #     )
+    #     print(
+    #         "shape: {}, prediction: {}\n".format(
+    #             unpadded_image.shape, prediction.predicted_y_in_px
+    #         ),
+    #         file=sys.stderr
+    #     )
+
+    # Modifying to keep track of errors
+    error = True
     try:
         output[rr, cc] = np.iinfo(output.dtype).max
+        error = False
     except IndexError:
         print(
             "error drawing line on preprocessed_image for:",
@@ -116,7 +144,7 @@ def draw_line_on_predicted_image(prediction, unpadded_image, sag_mip):
             file=sys.stderr
         )
 
-    return output
+    return output,error
 
 
 

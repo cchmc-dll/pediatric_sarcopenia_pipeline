@@ -125,6 +125,22 @@ class ImageSeries:
             return pydicom.read_file(metadata.l3_axial_image_dcm_path).pixel_array
         else:
             return self.pixel_data[l3_axial_index]
+    
+    # These 2 routines [image_at_manualL3, image_path_manualL3] are for handline outliers where L3 slices are picked manually - Elan
+    def image_at_manualL3(self, manualL3):
+        manualL3_path = self.image_path_manualL3(manualL3)
+        if self._pixel_data is None:
+            return pydicom.read_file(manualL3_path).pixel_array
+    
+    def image_path_manualL3(self, manualL3):
+        dataset_path_pairs = self.dataset_path_pairs_in_order
+        length = len(dataset_path_pairs)
+        dicom_paths = np.empty(shape=length, dtype="object")
+        for index, (dataset, path) in enumerate(dataset_path_pairs):
+            dicom_paths[index] = path
+            
+        manualL3_zero = manualL3 - 1
+        return dicom_paths[manualL3_zero]
 
     # Need to undo the spacing normalization, which is done using sagittal spacing[2]
     def image_index_at_pos(self, pos_with_1mm_spacing, sagittal_z_pos_pair: tuple):
@@ -397,7 +413,7 @@ def same_orientation(series, orientation, excluded_series):
 def construct_series_for_subjects_without_sagittals(
     subjects,
     sagittal_series,
-    axial_series
+    axial_series,thickness_filter=0.5
 ):
     set_of_subjects_with_sagittals = set(s.subject for s in sagittal_series)
 
@@ -410,7 +426,7 @@ def construct_series_for_subjects_without_sagittals(
 
     print("FILTERING OUT 0.5 axials for recons for debugging!")
 
-    def axial_series_is_adequate(series, thickness_mm=0.5):
+    def axial_series_is_adequate(series, thickness_mm=thickness_filter):
         try:
             return (series.slice_thickness != thickness_mm and
                     series.number_of_dicoms > 20)

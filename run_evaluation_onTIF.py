@@ -74,7 +74,7 @@ def run_evaluation(config):
     print('Min: ', np.min(df['DSC']))
     print('Max: ', np.max(df['DSC']))
 
-
+    
     df.to_csv(config['input_dir'] + '/' + config['output_file'])
 
     scores = dict()

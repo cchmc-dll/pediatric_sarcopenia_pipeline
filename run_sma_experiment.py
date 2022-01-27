@@ -10,10 +10,13 @@ import cv2
 from imageio import imsave
 from intervals import FloatInterval
 import intervals
-from keras.models import load_model
+from tensorflow.keras.models import load_model
 import numpy as np
 from tqdm import tqdm
 import SimpleITK as sitk
+
+import math as math
+from scipy.signal import convolve2d
 
 from L3_finder import find_l3_images
 from unet3d.metrics import (dice_coefficient, dice_coefficient_loss, dice_coef, dice_coef_loss,dice_coefficient_monitor,
@@ -29,7 +32,7 @@ def main(argv):
     l3_images, l3_finder_exclusions = find_l3_images(config["l3_finder"])
 
     print("Outputting L3 images")
-    output_images(
+    l3_images = output_images(
         l3_images,
         args=dict(
             output_directory=config["l3_finder"]["output_directory"],
@@ -89,9 +92,9 @@ class SegmentedImages:
         return [i.subject_id for i in self.l3_images]
 
 
-def segment_muscle(config, l3_images):
+def segment_muscle(config, l3_images, manualL3s = None):
     print("- Loading l3 axial images")
-    l3_ndas = load_l3_ndas(l3_images)
+    l3_ndas = load_l3_ndas(l3_images, manualL3s)
     print("- Removing table")
     tableless_images = remove_table(l3_ndas)
     print("- Thresholding images")
@@ -112,30 +115,129 @@ def segment_muscle(config, l3_images):
                            reshaped_masks)
 
 
-def load_l3_ndas(l3_images):
-    with multiprocessing.Pool(multiprocessing.cpu_count()) as pool:
-        ndas = list(tqdm(pool.imap(_load_l3_pixel_data, l3_images)))
-        pool.close()
-        pool.join()
+def load_l3_ndas(l3_images,manualL3s):
+    if manualL3s is None:
+        with multiprocessing.Pool(multiprocessing.cpu_count()) as pool:
+            ndas = list(tqdm(pool.imap(_load_l3_pixel_data, l3_images)))
+            pool.close()
+            pool.join()
+        return ndas
+    else:
+        print('Manual L3 locations found, using those to segment!')
+        with multiprocessing.Pool(multiprocessing.cpu_count()) as pool:
+            ndas = list(tqdm(pool.imap(_load_l3_pixel_data_manualL3, zip(l3_images,manualL3s))))
+            pool.close()
+            pool.join()
+        return ndas
 
-    return ndas
-
+def _load_l3_pixel_data_manualL3(l3_image_w_manualL3):
+    l3_image = l3_image_w_manualL3[0]
+    manualL3 = l3_image_w_manualL3[1]
+    return l3_image.pixel_data_manualL3(manualL3)
 
 def _load_l3_pixel_data(l3_image):
     return l3_image.pixel_data
 
 
+def rescale_1024(img):
+    if np.min(img) == 0 or np.min(img)==1: # Rescale intercept -1024, slope 1 or 0
+        # Rescale to -1024
+        img = img.astype('int16')
+        img = img - 1024 # undo rescale [proper HU]
+        img[img <= -1020] = -2048  # scale back to match others
+        return img
+    elif np.min(img) == -1024:
+        img = img.astype('int16')
+        img[img <= -1020] = -2048  # scale back to match others
+        return img
+    elif np.min(img) == -2000:
+        if np.mean(img) <= -500: # Images with rescaleintercept = -1024
+            img = img.astype('int16')
+            img[img <= -1020] = -2048  # scale back to match others
+            return img
+        else:       # Images with rescaleintercept = 0
+            img = img.astype('int16')
+            img = img - 1024 # undo rescale [proper HU]
+            img[img <= -1020] = -2048  # scale back to match others
+            return img
+    elif np.min(img) < -2048: # MIP images
+        img = img.astype('int16')
+        img[img <= -1020] = -2048  # scale back to match others
+        return img
+    else:
+        return img
+
+def estimate_noise(I):
+    H, W = I.shape
+
+    M = [[1, -2, 1],
+           [-2, 4, -2],
+           [1, -2, 1]]
+
+    sigma = np.sum(np.sum(np.absolute(convolve2d(I, M))))
+    sigma = sigma * math.sqrt(0.5 * math.pi) / (6 * (W-2) * (H-2))
+
+    return sigma    
+
+def smooth_img(input): 
+    CT = sitk.GetImageFromArray(input)
+    rgsmootherfilter = sitk.SmoothingRecursiveGaussianImageFilter()
+    rgsmootherfilter.SetSigma(2.0)
+    rgsmootherfilter.SetNormalizeAcrossScale(True)
+    rgsmoothedimage  = rgsmootherfilter.Execute(CT)
+    #ctnoise =estimate_noise(input)
+    output = sitk.GetArrayFromImage(rgsmoothedimage)
+    #smnoise = estimate_noise(output)
+    #print('Before noise: ',ctnoise, ' After noise: ', smnoise)
+    return output
+
+def set_max(input,max=4000):
+    input[input>max]=max
+    return input
+
+def denoise(input,sigma=1):
+    if estimate_noise(input) > sigma:
+        return (smooth_img(input))
+    else:
+        return input
+
 def remove_table(l3_ndas):
-    print("  - zeroing images")
-    zeroed_images = [
-        l3_nda + (l3_nda.min() * -1)
+    print(" - Taking care of images that have a rescale value of -1024, as opposed to -2048 for cannon images")
+    rescaled_images = [
+        rescale_1024(l3_nda)
         for l3_nda
         in tqdm(l3_ndas)
     ]
 
+    
+    print("  - zeroing images")
+    zeroed_images = [
+        rs_im + (rs_im.min() * -1)
+        for rs_im
+        in tqdm(rescaled_images)
+    ]
+    
+    # Set maximum
+    print(" - Taking care of maximum value: default max is 4000 for zeroed images")
+    remaxed_images = [
+        set_max(res_im)
+        for res_im
+        in tqdm(zeroed_images)
+    ]
+
+     # Denoise
+    print(" - Taking care of maximum value: default sigma above which to denoise is 1")
+    smooth_images = [
+        denoise(rem_im)
+        for rem_im
+        in tqdm(remaxed_images)
+    ]
+
+
+    
     print("  - removing table")
     with multiprocessing.Pool(multiprocessing.cpu_count() // 2) as pool:
-        tableless_images = list(tqdm(pool.imap(_remove_table, zeroed_images)))
+        tableless_images = list(tqdm(pool.imap(_remove_table, smooth_images)))
         pool.close()
         pool.join()
 
@@ -176,7 +278,15 @@ def _remove_table(CT_nda,l_thresh=1300,h_thresh=3500,seed=[256, 256]):
     # Masking FIlter
     maskingFilter = sitk.MaskImageFilter()
     CT_noTable = maskingFilter.Execute(CT,image)
-    return sitk.GetArrayFromImage(CT_noTable)
+    CT_noTable = sitk.GetArrayFromImage(CT_noTable)
+
+    # CHeck if the mean HU value is too low, which means CT did not have table and removed body pixels,
+    # Happens for very young patients with small field of view
+    if np.mean(CT_noTable) < 100: # if mean HU of final image is too low, return input CT
+        return CT_nda
+    else:
+        return CT_noTable
+
 
 
 def threshold_images(images, low=1800, high=2300):
@@ -262,7 +372,7 @@ def output_sma_results(output_dir, sma_images, areas, exclusions):
     with open(csv_filename, "w") as csvfile:
         csv_writer = csv.writer(csvfile)
         csv_writer.writerow(["subject_id", "area_mm2", "sagittal_series", "axial_series"])
-
+         
         excluded_indices = set(e.index for e in exclusions)
         for index in range(len(sma_images)):
             if index not in excluded_indices:
@@ -277,9 +387,9 @@ def output_sma_results(output_dir, sma_images, areas, exclusions):
                     l3_image.axial_series.series_name,
                 ]
                 csv_writer.writerow(row)
-
+    
     exclusion_filename = os.path.join(output_dir, "excluded_l3_images.csv")
-    with open(csv_filename, "w") as csvfile:
+    with open(exclusion_filename, "w") as csvfile:
         csv_writer = csv.writer(csvfile)
         csv_writer.writerow(["subject_id", "sagittal_series", "axial_series", "exclusion_reason"])
 

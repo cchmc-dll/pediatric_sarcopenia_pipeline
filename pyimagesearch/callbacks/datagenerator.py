@@ -1,9 +1,10 @@
 import numpy as np
-import keras
-from keras.utils import np_utils
+import tensorflow as tf
+import tensorflow.keras as keras
+from tensorflow.keras import utils
 from pyimagesearch.utils.generator_utils_Elan import convert_data, add_data_classify,add_data_segment_2D,add_data_segment
 from sklearn import preprocessing
-from keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 class DataGenerator_3D_Segmentation(keras.utils.Sequence):
     'Generates data for Keras'
@@ -99,7 +100,7 @@ class DataGenerator_2D_Segmentation(keras.utils.Sequence):
         # Generate data
         X, y = self.__data_generation(index_list_temp)
 
-        return X, y
+        return X, tf.cast(y,tf.float32)
 
     def on_epoch_end(self):
         'Updates indexes after each epoch'
@@ -239,7 +240,7 @@ class DataGenerator_CL_Classification(keras.utils.Sequence):
   
         x_cl = np.asarray(x_cl_list)
         y = np.asarray([y.decode("utf-8") for y in y_list])
-        y  = np_utils.to_categorical(self.encoder.transform(y), self.n_classes)
+        y  = utils.to_categorical(self.encoder.transform(y), self.n_classes)
         return x_cl, y
 
 class DataGenerator_3DCL_Classification(keras.utils.Sequence):
@@ -307,7 +308,7 @@ class DataGenerator_3DCL_Classification(keras.utils.Sequence):
         x_im = np.asarray(x_list)
         x_cl = np.asarray(x_cl_list)
         y = np.asarray([y.decode("utf-8") for y in y_list])
-        y  = np_utils.to_categorical(self.encoder.transform(y), self.n_classes)
+        y  = utils.to_categorical(self.encoder.transform(y), self.n_classes)
         x = [x_cl,x_im]
         return x, y
 
@@ -373,7 +374,7 @@ class DataGenerator_3D_Classification(keras.utils.Sequence):
    
         x_im = np.asarray(x_list)
         y = np.asarray([y.decode("utf-8") for y in y_list])
-        y  = np_utils.to_categorical(self.encoder.transform(y), self.n_classes)
+        y  = utils.to_categorical(self.encoder.transform(y), self.n_classes)
         return x_im, y
 
 class TestGenerator_3D_Classification(keras.utils.Sequence):

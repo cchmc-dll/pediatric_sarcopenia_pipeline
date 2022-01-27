@@ -1,19 +1,21 @@
 # import the necessary packages
-from keras.models import Model
-from keras.layers.normalization import BatchNormalization
-from keras.layers.convolutional import Conv2D
-from keras.layers.convolutional import MaxPooling2D
-from keras.layers.core import Activation
-from keras.layers.core import Flatten
-from keras.layers.core import Dropout
-from keras.layers.core import Dense
-from keras.layers.convolutional import Conv2DTranspose
-from keras.layers import Input
-from keras.layers import concatenate
-from keras.layers import UpSampling2D
-from keras.layers.pooling import MaxPooling2D, GlobalMaxPool2D
-from keras.layers.merge import concatenate, add
-from keras import backend as K
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import BatchNormalization
+from tensorflow.keras.layers import Conv2D
+from tensorflow.keras.layers import MaxPooling2D
+from tensorflow.keras.layers import Activation
+from tensorflow.keras.layers import Flatten
+from tensorflow.keras.layers import Dropout
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.layers import Conv2DTranspose
+from tensorflow.keras.layers import Input
+from tensorflow.keras.layers import concatenate
+from tensorflow.keras.layers import UpSampling2D
+from tensorflow.keras.layers import MaxPooling2D, GlobalMaxPool2D
+from tensorflow.keras.layers import concatenate, add
+from tensorflow.keras import backend as K
+
+K.set_image_data_format('channels_first')
 
 # Model based on: https://github.com/zhixuhao/unet/blob/master/model.py
 class Unet2D:
@@ -192,7 +194,7 @@ class Unet2D_BN_MOD:
         if K.image_data_format() == "channels_first":
 			#inputShape = (depth, height, width)
             chanDim = 1
-
+        
         input_img = Input(inputShape)
         n_filters=16
         dropout=0.5

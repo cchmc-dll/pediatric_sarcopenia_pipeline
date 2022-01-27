@@ -1,23 +1,21 @@
-from keras.applications.vgg16 import VGG16
-from keras.layers import *
-from keras.models import *
-from keras.optimizers import Adam
+from tensorflow.keras.applications.vgg16 import VGG16
+from tensorflow.keras.layers import *
+
+from tensorflow.keras.optimizers import Adam
 
 from ct_slice_detection.core.model_wrapper import BaseModelWrapper
 
+from tensorflow.keras.models import *
 
-
-
-
-from keras.layers import Layer
-from keras.engine import InputSpec
+from tensorflow.keras import backend as K
+from tensorflow.keras.layers import Layer, InputSpec
 
 
 class _GlobalHorizontalPooling2D(Layer):
     """Abstract class for different global pooling 2D layers.
     """
 
-    @interfaces.legacy_global_pooling_support
+   # @interfaces.legacy_global_pooling_support
     def __init__(self, data_format=None, **kwargs):
         super(_GlobalHorizontalPooling2D, self).__init__(**kwargs)
         self.data_format = data_format
